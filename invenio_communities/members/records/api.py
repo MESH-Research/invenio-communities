@@ -14,6 +14,7 @@ from invenio_db import db
 from invenio_records.dumpers import SearchDumper
 from invenio_records.dumpers.indexedat import IndexedAtDumperExt
 from invenio_records.dumpers.relations import RelationDumperExt
+from invenio_records.dumpers.search import SearchDumperExt
 from invenio_records.systemfields import ModelField, ModelRelation, RelationsField
 from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
@@ -24,9 +25,26 @@ from sqlalchemy import or_
 from ..errors import InvalidMemberError
 from .models import ArchivedInvitationModel, MemberModel
 
+
+class ProfileFilterDumperExt(SearchDumperExt):
+    """Dumper extension for the indexed_at field."""
+
+    def dump(self, record, data):
+        """Dump relations."""
+        if "user" in data.keys():
+            if "profile" in data["user"].keys():
+                for key in [
+                    k
+                    for k in data["user"]["profile"].keys()
+                    if k not in ["affiliations", "full_name"]
+                ]:
+                    del data["user"]["profile"][key]
+
+
 relations_dumper = SearchDumper(
     extensions=[
         RelationDumperExt("relations"),
+        ProfileFilterDumperExt(),
         IndexedAtDumperExt(),
     ]
 )
