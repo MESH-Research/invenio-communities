@@ -16,39 +16,28 @@ export class CustomFieldSerializer {
     serializedDefault = null,
     allowEmpty = false,
     vocabularyFields = [],
-    genericVocabularies = [],
   }) {
     this.fieldpath = fieldpath;
     this.deserializedDefault = deserializedDefault;
     this.serializedDefault = serializedDefault;
     this.allowEmpty = allowEmpty;
     this.vocabularyFields = vocabularyFields;
-    this.genericVocabularies = genericVocabularies;
   }
 
   #mapCustomFields(record, customFields, mapValue) {
     if (customFields !== null) {
       for (const [key, value] of Object.entries(customFields)) {
         const isVocabularyField = this.vocabularyFields.includes(key);
-        const isGenericVocabulary = this.genericVocabularies.includes(key);
         const _value = _isArray(value)
-          ? value.map((v, i) => mapValue(v, i, isVocabularyField, isGenericVocabulary))
-          : mapValue(value, null, isVocabularyField, isGenericVocabulary);
+          ? value.map((v, i) => mapValue(v, i, isVocabularyField))
+          : mapValue(value, null, isVocabularyField);
         record = _set(record, `custom_fields.${key}`, _value);
       }
     }
   }
 
   deserialize(record) {
-    const _deserialize = (
-      value,
-      i = undefined,
-      isVocabulary = false,
-      isGenericVocabulary = false
-    ) => {
-      if (isVocabulary && !isGenericVocabulary) {
-        return value;
-      }
+    const _deserialize = (value, i = undefined, isVocabulary = false) => {
       if (isVocabulary && value?.id) {
         return value.id;
       }
