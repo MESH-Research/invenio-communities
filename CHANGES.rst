@@ -9,6 +9,35 @@
 Changes
 =======
 
+Version 12.0.1 (released 2024-03-04)
+
+- bump react-invenio-forms
+- reorder the community's menu items
+- move `filter_dict_keys` util to invenio-records
+
+Version 12.0.0 (released 2024-02-19)
+
+- major version bump on invenio-users-resources (through invenio-requests)
+
+Version 11.1.1 (released 2024-02-19)
+
+- mappings: change "dynamic" values to string
+- ui: removed console.log from communitiesCarousel (#1077)
+
+Version 11.1.0 (released 2024-02-19)
+
+- mappings: add parent.children
+- dump: add children allow
+- services: use update service method for setting the parent
+- mappings: fix parent.theme.style key
+- mappings: fix type mismatch for funding.award.number
+
+Version 11.0.0 (released 2024-02-16)
+
+- systemfields: add children
+- systemfields: index communities in records
+- horizon: community home page (#1081)
+
 Version 10.1.0 (released 2024-02-09)
 
 - parent_community: dereference parent community
@@ -26,7 +55,6 @@ Version 10.0.0 (released 2024-02-09)
 - mappings: add "parent" community and normalize funding
 - global: always serialize Community.theme
 - models: add index on bucket_id
-
 
 Version 9.0.0 (released 2024-01-31)
 

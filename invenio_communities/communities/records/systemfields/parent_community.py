@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2022 CERN.
+# Copyright (C) 2022-2024 CERN.
 #
 # Invenio is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -9,10 +9,9 @@
 """Community PID slug field."""
 from uuid import UUID
 
+from invenio_records.dictutils import filter_dict_keys
 from invenio_records.systemfields import SystemField
 from sqlalchemy.orm.exc import NoResultFound
-
-from ....utils import filter_dict_keys
 
 
 def is_valid_uuid(value):
@@ -98,6 +97,7 @@ class ParentCommunityField(SystemField):
                     "slug",
                     "theme",
                     "version_id",
+                    "children.allow",
                     "metadata.title",
                     "metadata.type",
                     "metadata.website",

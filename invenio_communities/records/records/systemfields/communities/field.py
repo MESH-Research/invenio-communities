@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2021 CERN.
+# Copyright (C) 2021-2024 CERN.
 #
 # Invenio-Communities is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -8,9 +8,9 @@
 
 """Communities system field."""
 
+from invenio_records.dictutils import filter_dict_keys
 from invenio_records.systemfields import SystemField
 
-from .....utils import filter_dict_keys
 from .context import CommunitiesFieldContext
 from .manager import CommunitiesRelationManager
 
@@ -76,9 +76,15 @@ class CommunitiesField(SystemField):
             "metadata.website",
             "metadata.organizations",
             "metadata.funding",
+            "children.allow",
             "parent.id",
             "parent.slug",
+            "parent.uuid",
+            "parent.created",
+            "parent.updated",
+            "parent.version_id",
             "parent.theme",
+            "parent.children.allow",
             "parent.metadata.title",
             "parent.metadata.type",
             "parent.metadata.website",

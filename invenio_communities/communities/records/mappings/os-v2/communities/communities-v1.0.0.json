@@ -62,7 +62,7 @@
               },
               "title": {
                 "type": "object",
-                "dynamic": true
+                "dynamic": "true"
               }
             }
           },
@@ -135,7 +135,7 @@
               },
               "title": {
                 "type": "object",
-                "dynamic": true,
+                "dynamic": "true",
                 "properties": {
                   "en": {
                     "type": "text"
@@ -177,10 +177,15 @@
                   },
                   "title": {
                     "type": "object",
-                    "dynamic": true
+                    "dynamic": "true"
                   },
                   "number": {
-                    "type": "keyword"
+                    "type": "text",
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword"
+                      }
+                    }
                   },
                   "program": {
                     "type": "keyword"
@@ -301,7 +306,7 @@
               },
               "title": {
                 "type": "object",
-                "dynamic": true,
+                "dynamic": "true",
                 "properties": {
                   "en": {
                     "type": "text"
@@ -327,7 +332,7 @@
                   },
                   "title": {
                     "type": "object",
-                    "dynamic": true,
+                    "dynamic": "true",
                     "properties": {
                       "en": {
                         "type": "text"
@@ -366,7 +371,7 @@
                       },
                       "title": {
                         "type": "object",
-                        "dynamic": true
+                        "dynamic": "true"
                       },
                       "number": {
                         "type": "text",
@@ -431,9 +436,17 @@
               "brand": {
                 "type": "keyword"
               },
-              "config": {
+              "style": {
                 "type": "object",
                 "enabled": false
+              }
+            }
+          },
+          "children": {
+            "type": "object",
+            "properties": {
+              "allow": {
+                "type": "boolean"
               }
             }
           }

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2022 Northwestern University.
 # Copyright (C) 2022-2023 Graz University of Technology.
 #
@@ -300,6 +300,48 @@ class CommunityThemeComponent(ServiceComponent):
                 record["theme"] = data["theme"]
 
 
+class CommunityParentComponent(ServiceComponent):
+    """Service Component for Community parent."""
+
+    def _validate_and_get_parent(self, parent_data, child):
+        """Validate and return parent community."""
+        if not parent_data:
+            return None
+        try:
+            parent = self.service.record_cls.pid.resolve(parent_data["id"])
+            if not parent.children.allow:
+                raise ValidationError("Assigned parent is not allowed to be a parent.")
+            elif child.children.allow:
+                raise ValidationError(
+                    "Community allowed to be a parent can't be a child."
+                )
+            elif parent.parent:
+                raise ValidationError(
+                    "Assigned parent community cannot also have a parent."
+                )
+            elif child.id == parent.id:
+                raise ValidationError(
+                    "Assigned parent community cannot be the same as child."
+                )
+        except PIDDoesNotExistError:
+            raise ValidationError("Assigned parent community does not exist.")
+        return parent
+
+    def create(self, identity, data=None, record=None, **kwargs):
+        """Inject parsed theme to the record."""
+        if "parent" in data:
+            self.service.require_permission(identity, "manage_parent", record=record)
+            parent = self._validate_and_get_parent(data["parent"], record)
+            record.parent = parent
+
+    def update(self, identity, data=None, record=None, **kwargs):
+        """Update parent community of a community."""
+        if "parent" in data:
+            self.service.require_permission(identity, "manage_parent", record=record)
+            parent = self._validate_and_get_parent(data["parent"], record)
+            record.parent = parent
+
+
 class ChildrenComponent(ServiceComponent):
     """Service component for children integration."""
 
@@ -329,4 +371,5 @@ DefaultCommunityComponents = [
     OAISetComponent,
     CommunityDeletionComponent,
     ChildrenComponent,
+    CommunityParentComponent,
 ]

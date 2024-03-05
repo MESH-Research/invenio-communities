@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2021 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2023 Graz University of Technology.
 #
 # Invenio is free software; you can redistribute it and/or modify it
@@ -248,6 +248,35 @@ class BaseCommunitySchema(BaseRecordSchema, FieldPermissionsMixin):
 
         return data
 
+
+class CommunityParentSchema(BaseCommunitySchema):
+    """Community parent schema."""
+
+
+class CommunitySchema(BaseCommunitySchema):
+    """Community schema."""
+
+    parent = NestedAttribute(CommunityParentSchema, dump_only=True, allow_none=True)
+
+    @post_dump
+    def post_dump(self, data, many, **kwargs):
+        """Hide parent field if it's not present."""
+        data = super().post_dump(data, many, **kwargs)
+        if data.get("parent") is None:
+            data.pop("parent", None)
+        return data
+
+    @post_load(pass_original=True)
+    def filter_parent_id(self, in_data, original_data, **kwargs):
+        """Simply keep the parent id."""
+        if "parent" in original_data:
+            in_data["parent"] = (
+                dict(id=original_data["parent"]["id"])
+                if original_data["parent"]
+                else None
+            )
+        return in_data
+
     @pre_load
     def initialize_custom_fields(self, data, **kwargs):
         """Ensure custom fields are initialized.
@@ -262,31 +291,6 @@ class BaseCommunitySchema(BaseRecordSchema, FieldPermissionsMixin):
     def lowercase(self, in_data, **kwargs):
         """Ensure slug is lowercase."""
         in_data["slug"] = in_data["slug"].lower()
-        return in_data
-
-
-class CommunityParentSchema(BaseCommunitySchema):
-    """Community parent schema."""
-
-
-class CommunitySchema(BaseCommunitySchema):
-    """Community schema."""
-
-    parent = NestedAttribute(CommunityParentSchema, dump_only=True)
-
-    @post_dump
-    def post_dump(self, data, many, **kwargs):
-        """Hide parent field if it's not present."""
-        data = super().post_dump(data, many, **kwargs)
-        if data.get("parent") is None:
-            data.pop("parent", None)
-        return data
-
-    @post_load
-    def filter_parent_id(self, in_data, **kwargs):
-        """Simply keep the parent id."""
-        if in_data.get("parent"):
-            in_data["parent"] = dict(id=in_data.get("parent", {}).get("id"))
         return in_data
 
 
