@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2022 Northwestern University.
-# Copyright (C) 2022 CERN.
+# Copyright (C) 2022-2024 CERN.
 #
 # Invenio-Communities is free software; you can redistribute it and/or modify
 # it under the terms of the MIT License; see LICENSE file for more details.
@@ -192,7 +192,7 @@ def test_delete(client, headers, community_id, owner, public_reader):
 def extra_user(app, db, UserFixture, member_service, community):
     """Add a reader member with public visibility."""
     u = UserFixture(
-        email=f"extra@newuser.org",
+        email="extra@newuser.org",
         password="newuser",
         user_profile={
             "full_name": "Should be last",
