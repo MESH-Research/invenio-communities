@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2022 Northwestern University.
 # Invenio is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -480,6 +480,7 @@ def test_simple_put_response(
 
     data["access"] = {
         "visibility": "restricted",
+        "members_visibility": "restricted",
         "member_policy": "closed",
         "record_policy": "closed",
     }
@@ -531,6 +532,7 @@ def test_update_renamed_record(
     renamed_id_ = renamed_community["id"]
     data["access"] = {
         "visibility": "restricted",
+        "members_visibility": "restricted",
         "member_policy": "closed",
         "record_policy": "closed",
     }
