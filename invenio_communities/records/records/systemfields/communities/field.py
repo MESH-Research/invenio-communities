@@ -63,42 +63,55 @@ class CommunitiesField(SystemField):
         """Dump the communities field."""
         comms = getattr(record, self.attr_name)
         res = comms.to_dict()
-        keep_fields = [
-            "uuid",
-            "created",
-            "updated",
-            "id",
-            "slug",
-            "theme",
-            "version_id",
-            "metadata.title",
-            "metadata.type",
-            "metadata.website",
-            "metadata.organizations",
-            "metadata.funding",
-            "children.allow",
-            "parent.id",
-            "parent.slug",
-            "parent.uuid",
-            "parent.created",
-            "parent.updated",
-            "parent.version_id",
-            "parent.theme",
-            "parent.children.allow",
-            "parent.metadata.title",
-            "parent.metadata.type",
-            "parent.metadata.website",
-            "parent.metadata.organizations",
-            "parent.metadata.funding",
-        ]
+
+        def _dump_community(comm):
+            dump = comm.dumps()
+
+            # Add a version counter "@v" used for optimistic concurrency control. It
+            # allows to search for all outdated community references and reindex them
+            dump["@v"] = f"{comm.id}::{comm.revision_id}"
+
+            return filter_dict_keys(
+                dump,
+                keys=[
+                    "@v",
+                    "uuid",
+                    "created",
+                    "updated",
+                    "id",
+                    "slug",
+                    "theme",
+                    "is_verified",
+                    "version_id",
+                    "metadata.title",
+                    "metadata.type",
+                    "metadata.website",
+                    "metadata.organizations",
+                    "metadata.funding",
+                    "children.allow",
+                    "parent.id",
+                    "parent.slug",
+                    "parent.uuid",
+                    "parent.created",
+                    "parent.updated",
+                    "parent.version_id",
+                    "parent.theme",
+                    "parent.is_verified",
+                    "parent.children.allow",
+                    "parent.metadata.title",
+                    "parent.metadata.type",
+                    "parent.metadata.website",
+                    "parent.metadata.organizations",
+                    "parent.metadata.funding",
+                ],
+            )
+
         if res:
-            res["entries"] = [
-                filter_dict_keys(comm.dumps(), keep_fields) for comm in comms
-            ]
+            res["entries"] = [_dump_community(comm) for comm in comms]
             data[self.key] = res
 
     def post_load(self, record, data, loader=None):
-        """Laod the parent community using the OS data (preventing a DB query)."""
+        """Load the parent community using the OS data (preventing a DB query)."""
         comms = data.get("communities")
         if comms:
             obj = self._manager_cls(self._m2m_model_cls, record.id, comms)

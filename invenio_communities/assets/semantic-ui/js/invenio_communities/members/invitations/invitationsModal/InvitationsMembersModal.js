@@ -1,6 +1,6 @@
 /*
  * This file is part of Invenio.
- * Copyright (C) 2022 CERN.
+ * Copyright (C) 2022-2024 CERN.
  *
  * Invenio is free software; you can redistribute it and/or modify it
  * under the terms of the MIT License; see LICENSE file for more details.
@@ -14,7 +14,9 @@ import { withState } from "react-searchkit";
 import { Button, Container, Modal, Tab } from "semantic-ui-react";
 import { InvitationsContext } from "../../../api/invitations/InvitationsContextProvider";
 import { GroupTabPane } from "./GroupTabPane";
-import { MembersWithRoleSelection } from "./MembersWithRoleSelection";
+import { SearchWithRoleSelection } from "../../components/SearchWithRoleSelection";
+import { RichEditor, withCancel, http } from "react-invenio-forms";
+import { UsersApi } from "../../../api";
 
 export class InvitationsMembersModal extends Component {
   constructor(props) {
@@ -22,6 +24,8 @@ export class InvitationsMembersModal extends Component {
     this.state = {
       open: false,
       activeIndex: 0, // by default members is the active pane
+      message: undefined,
+      existingIds: [],
     };
   }
 
@@ -33,16 +37,47 @@ export class InvitationsMembersModal extends Component {
     this.handleCloseModal();
   };
 
+  updateMessage = (message) => {
+    this.setState({ message: message });
+  };
+
   onGroupSuccess = () => {
     const { community } = this.props;
     window.location = InvenioCommunitiesRoutesGenerator.membersList(community.slug);
   };
 
+  fetchExisting = async () => {
+    // merge all open invitations and members to grey them out in the search
+    const { community } = this.props;
+    this.cancellableAction = withCancel(
+      http.get(`${community.links.invitations}?is_open=true`)
+    );
+    const invitationsResponse = await this.cancellableAction.promise;
+    const invitations = invitationsResponse?.data?.hits?.hits;
+
+    this.cancellableAction = withCancel(http.get(community.links.members));
+    const membersResponse = await this.cancellableAction.promise;
+    const members = membersResponse?.data?.hits?.hits;
+
+    const existing = [...invitations, ...members];
+
+    const existingEntitiesIds = [];
+    existing.forEach((result) => {
+      existingEntitiesIds.push(result?.member?.id);
+    });
+
+    this.setState({
+      existingIds: existingEntitiesIds,
+    });
+  };
+
   getPanes = () => {
-    const { groupsEnabled, rolesCanInvite } = this.props;
-    const { activeIndex } = this.state;
+    const { groupsEnabled, rolesCanInvite, community } = this.props;
+    const { activeIndex, message, existingIds } = this.state;
     const { api } = this.context;
     const userRoles = rolesCanInvite["user"];
+    const client = new UsersApi();
+
     const peopleTab = {
       menuItem: (
         <Button
@@ -63,12 +98,40 @@ export class InvitationsMembersModal extends Component {
           key="members-users"
           as={Container}
         >
-          <MembersWithRoleSelection
+          <SearchWithRoleSelection
             key="members-users"
+            searchType="user"
+            fetchMembers={client.getUsers}
             roleOptions={userRoles}
             modalClose={this.handleCloseModal}
             action={api.createInvite}
             onSuccessCallback={this.onMemberSuccess}
+            searchBarTitle={<label>{i18next.t("Member")}</label>}
+            searchBarTooltip={i18next.t(
+              "Search for users to invite (only users with a public profile can be invited)"
+            )}
+            doneButtonText={i18next.t("Invite")}
+            doneButtonIcon="checkmark"
+            radioLabel={i18next.t("Role")}
+            selectedItemsHeader={i18next.t("No selected members")}
+            message={message}
+            messageComponent={
+              <>
+                <label>{i18next.t("Invitation message")}</label>
+                <RichEditor
+                  onBlur={(event, editor) => {
+                    this.updateMessage(editor.getContent());
+                  }}
+                />
+              </>
+            }
+            doneButtonTip={i18next.t("You are about to invite")}
+            doneButtonTipType={i18next.t("users")}
+            existingEntities={existingIds}
+            existingEntitiesDescription={i18next.t(
+              "Already a member or invitation pending"
+            )}
+            searchBarPlaceholder={i18next.t("Search by email, full name or username")}
           />
         </Tab.Pane>
       ),
@@ -100,6 +163,7 @@ export class InvitationsMembersModal extends Component {
             roleOptions={groupRoles}
             action={api.addGroupToMembers}
             onSuccessCallback={this.onGroupSuccess}
+            community={community}
           />
         </Tab.Pane>
       ),
@@ -111,6 +175,7 @@ export class InvitationsMembersModal extends Component {
   handleCloseModal = () => this.setState({ open: false });
 
   handleOpenModal = () => {
+    this.fetchExisting();
     this.setState({ open: true }, () => {
       const membersTab = document.getElementById("members-users-tab");
       membersTab.focus();

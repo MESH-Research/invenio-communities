@@ -9,6 +9,30 @@
 Changes
 =======
 
+Version 13.0.3 (released 2024-05-15)
+
+- components: fix parent update permissions
+
+Version 13.0.2 (released 2024-05-07)
+
+- groups: moved groups config and permission generator to invenio-users-resources
+
+Version 13.0.1 (released 2024-04-15)
+
+- fix: community theme and menus visibility
+
+Version 13.0.0 (released 2024-04-10)
+
+- ext: space-out community menu items
+- systemfields: dump `@v` field during indexing
+- members modal: generalise to be reusable
+- records: optimize performance of is_verified
+- models: fix memberships querying
+
+Version 12.2.0 (released 2024-03-23)
+
+- application: fix before_first_request deprecation
+
 Version 12.1.1 (released 2024-03-12)
 
 - components: fix backwards compatibility with community children
