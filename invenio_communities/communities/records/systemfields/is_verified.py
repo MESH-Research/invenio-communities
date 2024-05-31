@@ -24,7 +24,11 @@ class IsVerifiedField(CalculatedIndexedField):
         from invenio_communities.members.records.api import Member
 
         community_verified = False
-        owners = [m.dumps() for m in Member.get_members(record.id) if m.role == "owner"]
+        owners = [
+            m.dumps()
+            for m in Member.get_members(record.id)
+            if m.role == "owner" and m.user_id
+        ]
         for owner in owners:
             # community is considered verified if at least one owner is verified
             if owner["user"]["verified_at"] is not None:
