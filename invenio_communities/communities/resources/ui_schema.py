@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2022 CERN.
+# Copyright (C) 2022-2024 CERN.
 # Copyright (C) 2023 TU Wien.
 #
 # Invenio is free software; you can redistribute it and/or modify it
@@ -111,11 +111,11 @@ class UICommunitySchema(BaseObjectSchema):
         )
         return {"can_include_directly": can_include_directly, "can_update": can_update}
 
-    @post_dump
-    def post_dump(self, data, many, **kwargs):
+    @post_dump(pass_original=True)
+    def post_dump(self, data, original, many, **kwargs):
         """Pop tombstone field if not deleted/visible."""
-        is_deleted = (data.get("deletion_status") or {}).get("is_deleted", False)
-        tombstone_visible = (data.get("tombstone") or {}).get("is_visible", True)
+        is_deleted = (original.get("deletion_status") or {}).get("is_deleted", False)
+        tombstone_visible = (original.get("tombstone") or {}).get("is_visible", True)
 
         if not is_deleted or not tombstone_visible:
             data.pop("tombstone", None)

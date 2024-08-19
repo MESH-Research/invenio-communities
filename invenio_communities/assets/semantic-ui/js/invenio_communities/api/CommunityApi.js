@@ -1,5 +1,5 @@
 // This file is part of Invenio-Communities
-// Copyright (C) 2021 CERN.
+// Copyright (C) 2021-2024 CERN.
 // Copyright (C) 2021 Northwestern University.
 //
 // Invenio-communities is free software; you can redistribute it and/or modify it
@@ -104,6 +104,24 @@ export class CommunityApi {
       "Content-Type": "application/octet-stream",
     };
     return http.delete(`${this.baseUrl}/${communityId}/logo`, {
+      headers: headers,
+      ...options,
+    });
+  }
+
+  /**
+   * Create a new community.
+   *
+   * @param {string} communityId - Community UUID
+   * @param {object} payload - Serialized community
+   * @param {object} options - Custom options
+   */
+  async createSubcommunity(communityId, payload, options) {
+    options = options || {};
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    return http.post(`${this.baseUrl}/${communityId}/actions/join-request`, payload, {
       headers: headers,
       ...options,
     });

@@ -9,6 +9,62 @@
 Changes
 =======
 
+Version v14.5.2 (released 2024-08-07)
+
+- tests: replace docker-compose with docker compose
+- user_moderation: dispatch Celery tasks for each community operation
+- fix(logo): not fully deleted
+    * logo file hasn't been deleted. this prevented a new file upload,
+      because of an sqlalchemy.exc.IntegrityError:
+      (psycopg2.errors.UniqueViolation) error.
+- subcommunities: fix missing double-quote in email templates
+
+Version 14.5.1 (released 2024-06-28)
+
+- subcommunity: updated fieldpaths and error handling
+- subcommunity: updated error mapping in the ui
+
+Version 14.5.0 (released 2024-06-28)
+
+- subcommunities: pass "payload" to request creation
+
+Version 14.4.0 (released 2024-06-28)
+
+- subcommunity: updated fieldpaths in the ui
+- subcommunities: fix request redirect url
+- errors: added subcommunities errors
+- subcommunities: check for parent children allow
+
+Version 14.3.0 (released 2024-06-27)
+
+- subcommunities: made the request form overridable
+- subcommunities: pass community object
+- subcommunities: added auto-accept to request
+- request: added subcommunity type as a function to entry point
+- profile: rename award label
+    * closes https://github.com/inveniosoftware/invenio-app-rdm/issues/2602
+
+Version 14.2.0 (released 2024-06-24)
+
+- subcommunities: fixed redirect url after new request
+- subcommunities: add notifications
+- subcommunities-ui: explicitly sort by newest first in form dropdown
+- bug: return 404 if community cannot have children
+- bug: filter out communities that have a parent or can have children (#1154)
+- bug: allow adding existing communities
+
+Version 14.1.0 (released 2024-06-20)
+
+- mappings: add dynamic mappings for user profiles and preferences
+- community-ui: improve creation UX
+    * cast slug to lowercase
+- subcommunities: initial minimal feature implementation
+- ui: fixed tombstone dumping
+
+Version 14.0.0 (released 2024-06-04)
+
+- installation: bump invenio-vocabularies
+
 Version 13.0.3 (released 2024-05-15)
 
 - components: fix parent update permissions

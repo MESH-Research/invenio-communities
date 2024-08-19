@@ -31,6 +31,12 @@ from invenio_communities.members import (
     MemberService,
     MemberServiceConfig,
 )
+from invenio_communities.subcommunities import (
+    SubcommunityRequestResource,
+    SubCommunityResourceConfig,
+    SubCommunityService,
+    SubCommunityServiceConfig,
+)
 
 from . import config
 from .cache.cache import IdentityCache
@@ -80,6 +86,9 @@ class InvenioCommunities(object):
             files_service=FileService(CommunityFileServiceConfig.build(app)),
             members_service=MemberService(MemberServiceConfig.build(app)),
         )
+        self.subcommunity_service = SubCommunityService(
+            SubCommunityServiceConfig.build(app)
+        )
 
     def init_resource(self, app):
         """Initialize communities resources."""
@@ -91,6 +100,11 @@ class InvenioCommunities(object):
         self.members_resource = MemberResource(
             MemberResourceConfig,
             self.service.members,
+        )
+
+        self.subcommunities_resource = SubcommunityRequestResource(
+            config=SubCommunityResourceConfig.build(app),
+            service=self.subcommunity_service,
         )
 
     def init_hooks(self, app):

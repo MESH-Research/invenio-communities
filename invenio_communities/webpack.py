@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 #
 # Invenio is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -42,6 +42,7 @@ communities = WebpackThemeBundle(
                 "invenio-communities-admin-search": "./js/invenio_communities/administration/search.js",
                 "invenio-communities-featured": "./js/invenio_communities/community/featuredCommunities/index.js",
                 "invenio-communities-admin-featured": "./js/invenio_communities/administration/details.js",
+                "invenio-communities-subcommunities-new": "./js/invenio_communities/subcommunity/new.js",
             },
             dependencies={
                 "@semantic-ui-react/css-patch": "^1.0.0",

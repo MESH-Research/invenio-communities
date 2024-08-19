@@ -1,6 +1,6 @@
 /*
  * This file is part of Invenio.
- * Copyright (C) 2016-2022 CERN.
+ * Copyright (C) 2016-2024 CERN.
  * Copyright (C) 2021-2022 Northwestern University.
  *
  * Invenio is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ const IdentifierField = ({ formConfig }) => {
         "This is your community's unique identifier. You will be able to access your community through the URL:"
       )}
       <br />
-      {`${formConfig.SITE_UI_URL}/communities/${values["slug"]}`}
+      {`${formConfig.SITE_UI_URL}/communities/${values["slug"].toLowerCase()}`}
     </>
   );
 
