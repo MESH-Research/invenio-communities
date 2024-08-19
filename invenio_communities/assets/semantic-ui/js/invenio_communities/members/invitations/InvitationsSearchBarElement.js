@@ -20,11 +20,12 @@ export const InvitationsSearchBarElement = ({
 }) => {
   return (
     <Input
-      className="invitation-searchbar rel-ml-2"
+      className="invitation-searchbar"
       action={{
         icon: "search",
         onClick: onBtnSearchClick,
         className: "search",
+        title: i18next.t("Search"),
       }}
       fluid
       placeholder={i18next.t("Search in invitations...")}
@@ -43,5 +44,9 @@ InvitationsSearchBarElement.propTypes = {
   onInputChange: PropTypes.func.isRequired,
   onKeyPress: PropTypes.func.isRequired,
   queryString: PropTypes.string.isRequired,
-  uiProps: PropTypes.object.isRequired,
+  uiProps: PropTypes.object,
+};
+
+InvitationsSearchBarElement.defaultProps = {
+  uiProps: null,
 };

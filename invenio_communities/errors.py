@@ -52,8 +52,39 @@ class OpenRequestsForCommunityDeletionError(CommunityError):
         """Initialise error."""
         super().__init__(
             ngettext(
-                "There is %(count)s request open for this community. Please, resolve it before deleting this community.",
-                "There are %(count)s requests open for this community. Please, resolve all of them before deleting this community.",
+                "There is %(num)s request open for this community. Please, resolve it before deleting this community.",
+                "There are %(num)s requests open for this community. Please, resolve all of them before deleting this community.",
                 requests,
+            )
+        )
+
+
+class CommunityDeletedError(CommunityError):
+    """Error denoting that the community was deleted."""
+
+    def __init__(self, community, result_item=None):
+        """Constructor."""
+        self.community = community
+        self.result_item = result_item
+
+
+class DeletionStatusError(CommunityError):
+    """Indicator for the record being in the wrong deletion status for the action."""
+
+    def __init__(self, community, expected_status):
+        """Constructor."""
+        self.community = community
+        self.expected_status = expected_status
+
+
+class SetDefaultCommunityError(CommunityError):
+    """Record is not part of a community that is being set as default."""
+
+    def __init__(self):
+        """Initialise error."""
+        super().__init__(
+            _(
+                "Cannot set community as the default. "
+                "The record has not been added to the community."
             )
         )

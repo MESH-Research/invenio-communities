@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 #
 # Invenio is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -19,17 +19,57 @@ from invenio_access.permissions import superuser_access
 from invenio_accounts.models import Role
 from invenio_admin.permissions import action_admin_access
 from invenio_app.factory import create_api
+from invenio_notifications.backends import EmailNotificationBackend
+from invenio_notifications.services.builders import NotificationBuilder
+from invenio_records_resources.references.entity_resolvers import ServiceResultResolver
 from invenio_records_resources.services.custom_fields import TextCF
 from invenio_requests.proxies import current_events_service, current_requests_service
-from invenio_users_resources.records import UserAggregate
+from invenio_users_resources.proxies import current_users_service
+from invenio_users_resources.services.schemas import (
+    NotificationPreferences,
+    UserPreferencesSchema,
+    UserSchema,
+)
 from invenio_vocabularies.proxies import current_service as vocabulary_service
 from invenio_vocabularies.records.api import Vocabulary
+from marshmallow import fields
 
 from invenio_communities.communities.records.api import Community
 from invenio_communities.members.records.api import Member
+from invenio_communities.notifications.builders import (
+    CommunityInvitationAcceptNotificationBuilder,
+    CommunityInvitationCancelNotificationBuilder,
+    CommunityInvitationDeclineNotificationBuilder,
+    CommunityInvitationExpireNotificationBuilder,
+    CommunityInvitationSubmittedNotificationBuilder,
+)
 from invenio_communities.proxies import current_communities
 
 pytest_plugins = ("celery.contrib.pytest",)
+
+
+class UserPreferencesNotificationsSchema(UserPreferencesSchema):
+    """Schema extending preferences with notification preferences for model validation."""
+
+    notifications = fields.Nested(NotificationPreferences)
+
+
+class NotificationsUserSchema(UserSchema):
+    """Schema for dumping a user with preferences including notifications."""
+
+    preferences = fields.Nested(UserPreferencesNotificationsSchema)
+
+
+class DummyNotificationBuilder(NotificationBuilder):
+    """Dummy builder class to do nothing.
+
+    Specific test cases should override their respective builder to test functionality.
+    """
+
+    @classmethod
+    def build(cls, **kwargs):
+        """Build notification based on type and additional context."""
+        return {}
 
 
 #
@@ -38,12 +78,12 @@ pytest_plugins = ("celery.contrib.pytest",)
 @pytest.fixture(scope="module")
 def app_config(app_config):
     """Override pytest-invenio app_config fixture."""
-    app_config[
-        "RECORDS_REFRESOLVER_CLS"
-    ] = "invenio_records.resolver.InvenioRefResolver"
-    app_config[
-        "RECORDS_REFRESOLVER_STORE"
-    ] = "invenio_jsonschemas.proxies.current_refresolver_store"
+    app_config["RECORDS_REFRESOLVER_CLS"] = (
+        "invenio_records.resolver.InvenioRefResolver"
+    )
+    app_config["RECORDS_REFRESOLVER_STORE"] = (
+        "invenio_jsonschemas.proxies.current_refresolver_store"
+    )
     # Variable not used. We set it to silent warnings
     app_config["JSONSCHEMAS_HOST"] = "not-used"
 
@@ -65,9 +105,43 @@ def app_config(app_config):
     app_config["COMMUNITIES_IDENTITIES_CACHE_REDIS_URL"] = "redis://localhost:6379/4"
 
     # Cache handler
-    app_config[
-        "COMMUNITIES_IDENTITIES_CACHE_HANDLER"
-    ] = "invenio_communities.cache.redis:IdentityRedisCache"
+    app_config["COMMUNITIES_IDENTITIES_CACHE_HANDLER"] = (
+        "invenio_communities.cache.redis:IdentityRedisCache"
+    )
+
+    app_config["MAIL_DEFAULT_SENDER"] = "test@invenio-rdm-records.org"
+
+    # Specifying backend for notifications. Only used in specific testcases.
+    app_config["NOTIFICATIONS_BACKENDS"] = {
+        EmailNotificationBackend.id: EmailNotificationBackend(),
+    }
+
+    # Specifying dummy builders to avoid raising errors for most tests. Extend as needed.
+    app_config["NOTIFICATIONS_BUILDERS"] = {
+        CommunityInvitationAcceptNotificationBuilder.type: CommunityInvitationAcceptNotificationBuilder,
+        CommunityInvitationCancelNotificationBuilder.type: CommunityInvitationCancelNotificationBuilder,
+        CommunityInvitationDeclineNotificationBuilder.type: CommunityInvitationDeclineNotificationBuilder,
+        CommunityInvitationExpireNotificationBuilder.type: CommunityInvitationExpireNotificationBuilder,
+        CommunityInvitationSubmittedNotificationBuilder.type: CommunityInvitationSubmittedNotificationBuilder,
+    }
+
+    # Specifying default resolvers. Will only be used in specific test cases.
+    app_config["NOTIFICATIONS_ENTITY_RESOLVERS"] = [
+        ServiceResultResolver(service_id="users", type_key="user"),
+        ServiceResultResolver(service_id="communities", type_key="community"),
+        ServiceResultResolver(service_id="requests", type_key="request"),
+        ServiceResultResolver(service_id="request_events", type_key="request_event"),
+    ]
+
+    # Extending preferences schemas, to include notification preferences. Should not matter for most test cases
+    app_config["ACCOUNTS_USER_PREFERENCES_SCHEMA"] = (
+        UserPreferencesNotificationsSchema()
+    )
+    app_config["USERS_RESOURCES_SERVICE_SCHEMA"] = NotificationsUserSchema
+
+    # Users are verified by default. This will disable the automatic creation of moderation requests after publishing a record.
+    # When testing unverified users, there is a "unverified_user" fixture for that purpose.
+    app_config["ACCOUNTS_DEFAULT_USERS_VERIFIED"] = True
 
     return app_config
 
@@ -139,6 +213,20 @@ def users(UserFixture, app, database):
         u = UserFixture(
             email=f"{r}@{r}.org",
             password=r,
+            username=r,
+            user_profile={
+                "full_name": f"{r} {r}",
+                "affiliations": "CERN",
+            },
+            preferences={
+                "visibility": "public",
+                "email_visibility": "restricted",
+                "notifications": {
+                    "enabled": True,
+                },
+            },
+            active=True,
+            confirmed=True,
         )
         u.create(app, database)
         users[r] = u
@@ -247,8 +335,9 @@ def superuser_role_need(db):
 def new_user(UserFixture, app, database):
     """A new user."""
     u = UserFixture(
-        email=f"newuser@newuser.org",
+        email="newuser@newuser.org",
         password="newuser",
+        username="newuser",
         user_profile={
             "full_name": "New User",
             "affiliations": "CERN",
@@ -256,6 +345,9 @@ def new_user(UserFixture, app, database):
         preferences={
             "visibility": "public",
             "email_visibility": "restricted",
+            "notifications": {
+                "enabled": True,
+            },
         },
         active=True,
         confirmed=True,
@@ -263,6 +355,8 @@ def new_user(UserFixture, app, database):
     u.create(app, database)
     # when using `database` fixture (and not `db`), commit the creation of the
     # user because its implementation uses a nested session instead
+    current_users_service.indexer.process_bulk_queue()
+    current_users_service.record_cls.index.refresh()
     database.session.commit()
     return u
 
@@ -276,6 +370,7 @@ def minimal_community():
     return {
         "access": {
             "visibility": "public",
+            "members_visibility": "public",
             "record_policy": "open",
         },
         "slug": "public",
@@ -291,6 +386,7 @@ def minimal_restricted_community_1():
     return {
         "access": {
             "visibility": "restricted",
+            "members_visibility": "restricted",
             "record_policy": "closed",
         },
         "slug": "community1",
@@ -306,6 +402,7 @@ def minimal_restricted_community_2():
     return {
         "access": {
             "visibility": "restricted",
+            "members_visibility": "restricted",
             "record_policy": "closed",
         },
         "slug": "community2",
@@ -321,6 +418,7 @@ def full_community():
     return {
         "access": {
             "visibility": "public",
+            "members_visibility": "public",
             "member_policy": "open",
             "record_policy": "open",
         },
@@ -361,6 +459,17 @@ def restricted_community(community_service, owner, minimal_community, location):
     return c
 
 
+@pytest.fixture(scope="module")
+def restricted_members_community(community_service, owner, minimal_community, location):
+    """A restricted members visibilty community."""
+    data = deepcopy(minimal_community)
+    data["access"]["members_visibility"] = "restricted"
+    data["slug"] = "members_restricted"
+    c = community_service.create(owner.identity, data)
+    owner.refresh()
+    return c
+
+
 @pytest.fixture(scope="function")
 def fake_communities(
     community_service,
@@ -371,9 +480,8 @@ def fake_communities(
     community_type_record,
     community_types,
 ):
-    """Fake Communities."""
-    data = deepcopy(minimal_community)
     """Multiple community created and posted to test search functionality."""
+    data = deepcopy(minimal_community)
     N = 4
 
     for type_, ind in itertools.product(community_types, list(range(N))):
@@ -452,7 +560,8 @@ def members(member_service, community, users, db):
         member_service.indexer.index(m)
         Member.index.refresh()
     # reindexing users to make sure the user service is up-to-date
-    UserAggregate.index.refresh()
+    current_users_service.indexer.process_bulk_queue()
+    current_users_service.record_cls.index.refresh()
     db.session.commit()
     return users
 

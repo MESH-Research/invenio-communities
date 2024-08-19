@@ -1,6 +1,6 @@
 ..
     This file is part of Invenio.
-    Copyright (C) 2016-2021 CERN.
+    Copyright (C) 2016-2024 CERN.
 
     Invenio is free software; you can redistribute it and/or modify it
     under the terms of the MIT License; see LICENSE file for more details.
@@ -8,6 +8,305 @@
 
 Changes
 =======
+
+Version 13.0.3 (released 2024-05-15)
+
+- components: fix parent update permissions
+
+Version 13.0.2 (released 2024-05-07)
+
+- groups: moved groups config and permission generator to invenio-users-resources
+
+Version 13.0.1 (released 2024-04-15)
+
+- fix: community theme and menus visibility
+
+Version 13.0.0 (released 2024-04-10)
+
+- ext: space-out community menu items
+- systemfields: dump `@v` field during indexing
+- members modal: generalise to be reusable
+- records: optimize performance of is_verified
+- models: fix memberships querying
+
+Version 12.2.0 (released 2024-03-23)
+
+- application: fix before_first_request deprecation
+
+Version 12.1.1 (released 2024-03-12)
+
+- components: fix backwards compatibility with community children
+
+Version 12.1.0 (released 2024-03-06)
+
+- global: implement access.members_visibility field
+- services: added bulk update parent method (#1112)
+- custom_fields: added custom vocab flag
+
+Version 12.0.1 (released 2024-03-04)
+
+- bump react-invenio-forms
+- reorder the community's menu items
+- move `filter_dict_keys` util to invenio-records
+
+Version 12.0.0 (released 2024-02-19)
+
+- major version bump on invenio-users-resources (through invenio-requests)
+
+Version 11.1.1 (released 2024-02-19)
+
+- mappings: change "dynamic" values to string
+- ui: removed console.log from communitiesCarousel (#1077)
+
+Version 11.1.0 (released 2024-02-19)
+
+- mappings: add parent.children
+- dump: add children allow
+- services: use update service method for setting the parent
+- mappings: fix parent.theme.style key
+- mappings: fix type mismatch for funding.award.number
+
+Version 11.0.0 (released 2024-02-16)
+
+- systemfields: add children
+- systemfields: index communities in records
+- horizon: community home page (#1081)
+
+Version 10.1.0 (released 2024-02-09)
+
+- parent_community: dereference parent community
+- parent: dereference in systemfield
+- theme: handle null values
+- parent_community: fix derefencing
+
+Version 10.0.0 (released 2024-02-09)
+
+- mappings: update to theme.style
+- systemfields: add parent community
+- community: add theme.enabled flag
+- community: rename theme.config to theme.style to facilitate indexing
+- records: expose theme field in search
+- mappings: add "parent" community and normalize funding
+- global: always serialize Community.theme
+- models: add index on bucket_id
+
+Version 9.0.0 (released 2024-01-31)
+
+- installation: bump dependencies
+
+Version 8.0.0 (released 2024-01-16)
+
+- global: add support for community theming
+- adds new data field called `theme`
+- adds specific template loader that handles themed templates per community
+- enables feature only for system user at the moment programmtically
+- disables indexing of community theme information
+
+Version 7.18.0 (released 2023-12-12)
+
+- replaced ckeditor with tinymce due to license issue
+- split CommunitiesCardGroup definition and rendering
+- changed "featured-communities" id on communities frontpage to "new-communities".
+  WARNING: If you are overriding invenio-communities/frontpage.html, make that change in your template.
+
+Version 7.17.0 (released 2023-11-10)
+
+- assets: add overridable id to profile form
+- assets: increase the char limit on community page description
+
+Version 7.16.5 (released 2023-11-07)
+
+- views: always show add community menu
+
+Version 7.16.4 (released 2023-11-01)
+
+- schema: avoid loading None value in custom fields
+- translation: fix ngettext function expected parameter
+
+Version 7.16.3 (released 2023-10-27)
+
+- ui: fix identity in jinja filter
+
+Version 7.16.2 (released 2023-10-26)
+
+- community logo: fix rendering a placeholder
+
+Version 7.16.1 (released 2023-10-25)
+
+- community-settings: bump curation policy and page length to 5k chars
+
+Version 7.16.0 (released 2023-10-25)
+
+- community-settings: use custom URL field
+- emails: removed html tags from strings
+- featured: make new upload btn optional
+
+Version 7.15.3 (released 2023-10-23)
+
+- schema: bump allowed curation policy and page length to 5k chars
+
+Version 7.15.2 (released 2023-10-13)
+
+- ui: allow trailing slashes
+
+Version 7.15.1 (released 2023-10-11)
+
+- community: fix deletion modal fields UI
+
+Version 7.15.0 (released 2023-10-10)
+
+- header: add manage community button
+
+Version 7.14.0 (released 2023-10-04)
+
+- default community: add possibility to set to None
+- searchapp: reduce the pagination options to 10 and 20
+
+Version 7.13.1 (released 2023-10-02)
+
+- communities: replace lru_cache with invenio_cache to ensure that cache expiration
+  using a TTL is correctly handled
+
+Version 7.13.0 (released 2023-10-02)
+
+- notifications: add notifications on invitation actions
+- settings menu: rename curation policy menu item to review policy
+- settings: remove hidden divider from pages
+
+Version 7.12.1 (released 2023-09-28)
+------------------------------------
+
+- fix service utility to cache community's slug
+
+Version 7.12.0 (released 2023-09-28)
+------------------------------------
+
+- add service utility to cache community's slug
+- service: fix sort param modifying sort options variable
+- community settings: toggle danger zone area based on permissions
+
+Version 7.11.0 (released 2023-09-25)
+------------------------------------
+
+- services: add community deletion
+- moderation: delete communities of blocked user
+- administration: add community deletion and restore actions
+- resource: add revision check on delete header
+- ui: add accessibility attributes
+
+Version 7.10.1 (released 2023-09-22)
+------------------------------------
+
+- ui: allow redirecting to another page when clicking on
+  the community's list item
+- fix an issue with wrongly updating users in the db when
+  fetching community's members
+
+
+Version 7.10.0 (released 2023-09-21)
+------------------------------------
+
+- resources: add etag headers
+
+Version 7.9.0 (released 2023-09-19)
+-----------------------------------
+
+- communities: implement service methods for deletion
+- CommunityCompactItem: add external icon and target blank
+- communities-profile: fix custom funding form
+
+Version 7.8.0 (released 2023-09-18)
+-----------------------------------
+
+- github: drop python 3.7 as it has reached end of life
+- communities: add data model for community deletion
+- members: remove rendering of HTML for member description
+- ui: safely render community `description`
+- delete community modal: fix styling
+
+Version 7.7.4 (released 2023-09-14)
+-----------------------------------
+
+- installation: bump invenio-vocabularies
+
+Version 7.7.3 (released 2023-09-14)
+-----------------------------------
+
+- search bar: add aria-label
+- a11y: added ids to TextFields
+
+Version 7.7.2 (released 2023-09-12)
+-----------------------------------
+
+- service: exclude created requests from search
+
+Version 7.7.1 (released 2023-09-04)
+-----------------------------------
+
+- components: fix visibility permission check on edit
+
+
+Version 7.7.0 (released 2023-08-30)
+-----------------------------------
+
+- oai-pmh: take oai sets prefix from config
+
+Version 7.6.0 (released 2023-08-23)
+-----------------------------------
+
+- communities: add `is_verified` field to sort communities based on owner verified status
+- user-moderation: implement `on_approve` action to reindex user communities
+
+Version 7.5.0 (released 2023-08-17)
+-----------------------------------
+
+- permissions: extract base permissions
+
+Version 7.4.0 (released 2023-08-09)
+-----------------------------------
+
+- add user moderation callback hooks
+- UI improvements
+
+Version 7.3.0 (released 2023-08-02)
+-----------------------------------
+
+- members and invitations: Add invite button to members tab, a11y fixes, UI fixes
+
+Version 7.2.3 (released 2023-07-26)
+-----------------------------------
+
+- ui: align search with "My account" header
+
+Version 7.2.2 (released 2023-07-24)
+-----------------------------------
+
+- templates: access message and mark subject for translation
+
+Version 7.2.1 (released 2023-07-24)
+-----------------------------------
+
+- inject create permissions to communities search
+
+Version 7.2.0 (released 2023-07-21)
+-----------------------------------
+
+- notifications: add member invitation notification
+
+Version 7.1.2 (released 2023-07-18)
+-----------------------------------
+
+- ui: fix mobile version
+
+Version 7.1.1 (released 2023-07-17)
+-----------------------------------
+
+- actions: reorder actions
+
+Version 7.0.1 (released 2023-07-05)
+-----------------------------------
+
+- tests: fix users update
 
 Version 7.0.0 (released 2023-06-15)
 -----------------------------------

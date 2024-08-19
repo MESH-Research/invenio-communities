@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 #
 # Invenio is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -25,10 +25,18 @@ from invenio_vocabularies.contrib.funders.api import Funder
 from invenio_vocabularies.records.api import Vocabulary
 from invenio_vocabularies.records.systemfields.relations import CustomFieldsRelation
 
+from invenio_communities.communities.records.systemfields.children import ChildrenField
+from invenio_communities.communities.records.systemfields.is_verified import (
+    IsVerifiedField,
+)
+
 from ..dumpers.featured import FeaturedDumperExt
 from . import models
 from .systemfields.access import CommunityAccessField
+from .systemfields.deletion_status import CommunityDeletionStatusField
+from .systemfields.parent_community import ParentCommunityField
 from .systemfields.pidslug import PIDSlugField
+from .systemfields.tombstone import TombstoneField
 
 
 class CommunityFile(FileRecord):
@@ -44,6 +52,8 @@ class Community(Record):
     id = ModelField()
     slug = ModelField()
     pid = PIDSlugField("id", "slug")
+    parent = ParentCommunityField()
+    children = ChildrenField()
 
     schema = ConstantField("$schema", "local://communities/communities-v1.0.0.json")
 
@@ -62,6 +72,7 @@ class Community(Record):
 
     #: Custom fields system field.
     custom_fields = DictField(clear_none=True, create_if_missing=True)
+    theme = DictField(clear_none=True)
 
     bucket_id = ModelField(dump=False)
     bucket = ModelField(dump=False)
@@ -76,7 +87,7 @@ class Community(Record):
         funding_award=PIDListRelation(
             "metadata.funding",
             relation_field="award",
-            keys=["number", "title"],
+            keys=["title", "number", "identifiers", "acronym", "program"],
             pid_field=Award.pid,
             cache_key="awards",
         ),
@@ -99,8 +110,20 @@ class Community(Record):
             pid_field=Vocabulary.pid.with_type_ctx("communitytypes"),
             cache_key="communitytypes",
         ),
+        removal_reason=PIDRelation(
+            "tombstone.removal_reason",
+            keys=["title"],
+            pid_field=Vocabulary.pid.with_type_ctx("removalreasons"),
+            cache_key="removal_reason",
+        ),
         custom=CustomFieldsRelation("COMMUNITIES_CUSTOM_FIELDS"),
     )
+
+    is_verified = IsVerifiedField("is_verified", use_cache=True, index=True)
+
+    deletion_status = CommunityDeletionStatusField()
+
+    tombstone = TombstoneField()
 
 
 CommunityFile.record_cls = Community

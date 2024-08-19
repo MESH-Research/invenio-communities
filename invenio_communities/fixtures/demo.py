@@ -23,12 +23,12 @@ def create_fake_community(faker):
         "slug": faker.unique.domain_word(),
         "metadata": {
             "title": faker.sentence(nb_words=5, variable_nb_words=True),
-            "description": faker.text(max_nb_chars=2000),
+            "description": faker.text(max_nb_chars=250),
             "type": {
                 "id": random.choice(["organization", "event", "topic", "project"])
             },
-            "curation_policy": faker.text(max_nb_chars=2000),
-            "page": faker.text(max_nb_chars=2000),
+            "curation_policy": faker.text(max_nb_chars=50000),
+            "page": faker.text(max_nb_chars=50000),
             "website": "https://" + faker.domain_name(),  # fake.url()
             "organizations": [{"name": "CERN"}],
         },

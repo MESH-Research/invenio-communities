@@ -14,7 +14,6 @@ import {
   Loader,
   Modal,
   Message,
-  Grid,
   Checkbox,
   Input,
 } from "semantic-ui-react";
@@ -72,7 +71,8 @@ export class DeleteCommunityModal extends Component {
       this.setState({
         loading: false,
         membersCount: membersResponse.data.hits.total,
-        recordsCount: recordsResponse.data.hits.total,
+        recordsCount:
+          recordsResponse.data.length === 0 ? 0 : recordsResponse.data.hits.total,
       });
     } catch (error) {
       console.error(error);
@@ -169,7 +169,7 @@ export class DeleteCommunityModal extends Component {
           aria-haspopup="dialog"
           aria-controls="warning-modal"
           aria-expanded={modalOpen}
-          id="delete-button"
+          id="delete-community-button"
         >
           <Icon name="trash" />
           {label}
@@ -178,31 +178,29 @@ export class DeleteCommunityModal extends Component {
         <Modal
           id="warning-modal"
           role="dialog"
-          aria-labelledby="delete-button"
+          aria-labelledby="delete-community-button"
           open={modalOpen}
           onClose={this.closeConfirmModal}
           size="tiny"
         >
-          <Modal.Header>{i18next.t("Permanently delete community")}</Modal.Header>
+          <Modal.Header as="h2">
+            {i18next.t("Permanently delete community")}
+          </Modal.Header>
           {loading && <Loader active={loading} />}
           <Modal.Content>
-            <Trans>
-              Are you <strong>absolutely sure</strong> you want to delete the community?
-            </Trans>
-          </Modal.Content>
-          <Modal.Content>
+            <p>
+              <Trans>
+                Are you <strong>absolutely sure</strong> you want to delete the
+                community?
+              </Trans>
+            </p>
+
             <Message negative>
-              <Message.Header>
-                <Grid columns={2} verticalAlign="middle">
-                  <Grid.Column width={1}>
-                    <Icon name="warning sign" />
-                  </Grid.Column>
-                  <Grid.Column width={15}>
-                    {i18next.t("This action CANNOT be undone!")}
-                  </Grid.Column>
-                </Grid>
+              <Message.Header className="rel-mb-1">
+                <Icon name="warning sign" className="rel-mr-1" />
+                {i18next.t("This action CANNOT be undone!")}
               </Message.Header>
-              <Message.Content>
+              <>
                 <Checkbox
                   id="members-confirm"
                   ref={this.checkboxRef}
@@ -216,6 +214,7 @@ export class DeleteCommunityModal extends Component {
                   }
                   checked={checkboxMembers}
                   onChange={this.handleCheckboxChange}
+                  className="mb-5"
                 />
                 <Checkbox
                   id="records-confirm"
@@ -229,6 +228,7 @@ export class DeleteCommunityModal extends Component {
                   }
                   checked={checkboxRecords}
                   onChange={this.handleCheckboxChange}
+                  className="mb-5"
                 />
                 <Checkbox
                   id="slug-confirm"
@@ -242,15 +242,22 @@ export class DeleteCommunityModal extends Component {
                   }
                   checked={checkboxSlug}
                   onChange={this.handleCheckboxChange}
+                  className="mb-5"
                 />
-              </Message.Content>
+              </>
             </Message>
-          </Modal.Content>
-          <Modal.Content>
-            <Trans>
-              Please type <strong>{{ communitySlug }}</strong> to confirm.
-            </Trans>
-            <Input fluid value={inputSlug} onChange={this.handleInputChange} />
+
+            <label htmlFor="confirm-delete">
+              <Trans>
+                Please type <strong>{{ communitySlug }}</strong> to confirm.
+              </Trans>
+            </label>
+            <Input
+              id="confirm-delete"
+              fluid
+              value={inputSlug}
+              onChange={this.handleInputChange}
+            />
           </Modal.Content>
           <Modal.Actions>
             {error && (
@@ -262,19 +269,13 @@ export class DeleteCommunityModal extends Component {
                 negative
               />
             )}
-            <Button
-              onClick={this.closeConfirmModal}
-              disabled={loading}
-              loading={loading}
-              floated="left"
-            >
+            <Button onClick={this.closeConfirmModal} floated="left">
               {i18next.t("Cancel")}
             </Button>
             <Button
               negative
               onClick={() => this.handleDelete()}
-              loading={loading}
-              disabled={this.handleButtonDisabled(communitySlug) || loading}
+              disabled={this.handleButtonDisabled(communitySlug)}
             >
               {i18next.t("Permanently delete")}
             </Button>

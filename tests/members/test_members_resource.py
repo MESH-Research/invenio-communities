@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2022 Northwestern University.
-# Copyright (C) 2022 CERN.
+# Copyright (C) 2022-2024 CERN.
 #
 # Invenio-Communities is free software; you can redistribute it and/or modify
 # it under the terms of the MIT License; see LICENSE file for more details.
@@ -104,18 +104,22 @@ def test_invite(client, headers, community_id, owner, new_user_data, db):
     )
     assert r.status_code == 204
 
-    # check the comment in the timeline
     RequestEvent.index.refresh()
     r = client.get(f"/communities/{community_id}/invitations", headers=headers)
     assert r.status_code == 200
     request_id = r.json["hits"]["hits"][0]["request"]["id"]
+
+    # check the request
+    r = client.get(f"/requests/{request_id}", headers=headers)
+    assert r.status_code == 200
+    request = r.json
+    assert 'You will join as "Reader"' in request["description"]
+
+    # check the timeline
     r = client.get(f"/requests/{request_id}/timeline", headers=headers)
     assert r.status_code == 200
-    assert r.json["hits"]["total"] == 2  # role message + invite message
-    assert (
-        r.json["hits"]["hits"][0]["payload"]["content"] == 'You will join as "Reader".'
-    )
-    assert r.json["hits"]["hits"][1]["payload"]["content"] == new_user_data["message"]
+    assert r.json["hits"]["total"] == 1  # invite message
+    assert r.json["hits"]["hits"][0]["payload"]["content"] == new_user_data["message"]
 
 
 def test_invite_deny(client, headers, community_id, new_user, new_user_data, db):
@@ -188,7 +192,7 @@ def test_delete(client, headers, community_id, owner, public_reader):
 def extra_user(app, db, UserFixture, member_service, community):
     """Add a reader member with public visibility."""
     u = UserFixture(
-        email=f"extra@newuser.org",
+        email="extra@newuser.org",
         password="newuser",
         user_profile={
             "full_name": "Should be last",

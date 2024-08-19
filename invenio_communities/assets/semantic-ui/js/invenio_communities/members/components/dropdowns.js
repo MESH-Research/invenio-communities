@@ -6,7 +6,9 @@ import PropTypes from "prop-types";
 const DropdownContent = ({ title, description, selected }) => (
   <Grid>
     <Grid.Row>
-      <Grid.Column width={1}>{selected && <Icon name="checkmark" />}</Grid.Column>
+      <Grid.Column width={1} verticalAlign="middle">
+        {selected && <Icon className="positive" name="checkmark" />}
+      </Grid.Column>
       <Grid.Column width={14}>
         <Item.Group unstackable>
           <Item>
@@ -50,6 +52,7 @@ export const RoleDropdown = ({
   disabled,
   currentValue,
   resource,
+  label,
 }) => {
   return (
     <ActionDropdown
@@ -62,6 +65,7 @@ export const RoleDropdown = ({
       resource={resource}
       direction="left"
       fluid
+      label={label}
     />
   );
 };
@@ -95,6 +99,7 @@ export const VisibilityDropdown = ({
   disabled,
   currentValue,
   resource,
+  label,
 }) => {
   return (
     <ActionDropdown
@@ -109,6 +114,7 @@ export const VisibilityDropdown = ({
       resource={resource}
       direction="left"
       fluid
+      label={label}
     />
   );
 };

@@ -1,6 +1,6 @@
 /*
  * This file is part of Invenio.
- * Copyright (C) 2016-2023 CERN.
+ * Copyright (C) 2016-2024 CERN.
  * Copyright (C) 2021-2022 Northwestern University.
  *
  * Invenio is free software; you can redistribute it and/or modify it
@@ -20,6 +20,7 @@ import _isNumber from "lodash/isNumber";
 import _isObject from "lodash/isObject";
 import _map from "lodash/map";
 import _mapValues from "lodash/mapValues";
+import _pick from "lodash/pick";
 import _pickBy from "lodash/pickBy";
 import _unset from "lodash/unset";
 import React, { Component } from "react";
@@ -41,13 +42,14 @@ import { CustomFieldSerializer } from "./CustomFieldSerializer";
 import PropTypes from "prop-types";
 import { default as DangerZone } from "./DangerZone";
 import { default as LogoUploader } from "./LogoUploader";
+import Overridable from "react-overridable";
 
 const COMMUNITY_VALIDATION_SCHEMA = Yup.object({
   metadata: Yup.object({
     title: Yup.string().max(250, i18next.t("Maximum number of characters is 2000")),
     description: Yup.string().max(
-      2000,
-      i18next.t("Maximum number of characters is 2000")
+      250,
+      i18next.t("Maximum number of characters is 250")
     ),
     website: Yup.string().url(i18next.t("Must be a valid URL")),
     type: Yup.object().shape({
@@ -177,6 +179,19 @@ class CommunityProfileForm extends Component {
       };
     });
     const { customFields } = this.props;
+    const genericVocabFields = [];
+
+    if (customFields.ui && customFields.ui.length > 0) {
+      customFields.ui.forEach((section) => {
+        if (section.fields && section.fields.length > 0) {
+          section.fields.forEach((field) => {
+            if (field.isGenericVocabulary) {
+              genericVocabFields.push(field.field);
+            }
+          });
+        }
+      });
+    }
 
     // Deserialize custom fields
     initialValues = new CustomFieldSerializer({
@@ -184,6 +199,7 @@ class CommunityProfileForm extends Component {
       deserializedDefault: {},
       serializedDefault: {},
       vocabularyFields: customFields.vocabularies,
+      genericVocabularies: genericVocabFields,
     }).deserialize(initialValues);
 
     return {
@@ -218,7 +234,11 @@ class CommunityProfileForm extends Component {
         }
 
         // Record is a custom record, without explicit 'id'
-        const clonedValue = _cloneDeep(value);
+        let clonedValue = _cloneDeep(value);
+        // allowed keys
+        const allowedKeys = ["identifiers", "number", "title"];
+        clonedValue = _pick(clonedValue, allowedKeys);
+
         if (value.title) {
           clonedValue.title = {
             en: value.title,
@@ -315,8 +335,15 @@ class CommunityProfileForm extends Component {
   };
 
   render() {
-    const { types, customFields, community, hasLogo, defaultLogo, logoMaxSize } =
-      this.props;
+    const {
+      types,
+      customFields,
+      community,
+      hasLogo,
+      defaultLogo,
+      logoMaxSize,
+      permissions,
+    } = this.props;
     const { error } = this.state;
     return (
       <Formik
@@ -365,178 +392,206 @@ class CommunityProfileForm extends Component {
                           />
                         }
                       />
-                      <TextAreaField
-                        fieldPath="metadata.description"
-                        label={
-                          <FieldLabel
-                            htmlFor="metadata.description"
-                            icon="pencil"
-                            label={i18next.t("Short description")}
-                          />
-                        }
-                        fluid
-                      />
-                      <SelectField
-                        search
-                        clearable
-                        fieldPath="metadata.type.id"
-                        label={
-                          <FieldLabel
-                            htmlFor="metadata.type.id"
-                            icon="tag"
-                            label={i18next.t("Type")}
-                          />
-                        }
-                        options={types.map((ct) => {
-                          return {
-                            value: ct.id,
-                            text: ct?.title_l10n ?? ct.id,
-                          };
-                        })}
-                      />
-                      <TextField
-                        fieldPath="metadata.website"
-                        label={
-                          <FieldLabel
-                            htmlFor="metadata.website"
-                            icon="chain"
-                            label={i18next.t("Website")}
-                          />
-                        }
-                        fluid
-                      />
 
-                      <RemoteSelectField
-                        fieldPath="metadata.organizations"
-                        suggestionAPIUrl="/api/affiliations"
-                        suggestionAPIHeaders={{
-                          Accept: "application/json",
-                        }}
-                        placeholder={i18next.t("Search for an organization by name")}
-                        clearable
-                        multiple
-                        initialSuggestions={_get(
-                          community,
-                          "metadata.organizations",
-                          []
-                        )}
-                        serializeSuggestions={(organizations) =>
-                          _map(organizations, (organization) => {
-                            // eslint-disable-next-line no-prototype-builtins
-                            const isKnownOrg = this.knownOrganizations.hasOwnProperty(
-                              organization.name
-                            );
-                            if (!isKnownOrg) {
-                              this.knownOrganizations = {
-                                ...this.knownOrganizations,
-                                [organization.name]: organization.id,
-                              };
-                            }
+                      <Overridable
+                        id="InvenioCommunities.CommunityProfileForm.TextAreaField.MetadataDescription"
+                        community={community}
+                      >
+                        <TextAreaField
+                          fieldPath="metadata.description"
+                          label={
+                            <FieldLabel
+                              htmlFor="metadata.description"
+                              icon="pencil"
+                              label={i18next.t("Short description")}
+                            />
+                          }
+                          fluid
+                        />
+                      </Overridable>
+
+                      <Overridable
+                        id="InvenioCommunities.CommunityProfileForm.SelectField.MetadataType"
+                        community={community}
+                      >
+                        <SelectField
+                          search
+                          clearable
+                          fieldPath="metadata.type.id"
+                          label={
+                            <FieldLabel
+                              htmlFor="metadata.type.id"
+                              icon="tag"
+                              label={i18next.t("Type")}
+                            />
+                          }
+                          options={types.map((ct) => {
                             return {
-                              text: organization.name,
-                              value: organization.name,
-                              key: organization.name,
+                              value: ct.id,
+                              text: ct?.title_l10n ?? ct.id,
                             };
-                          })
-                        }
-                        label={
-                          <FieldLabel
-                            htmlFor="metadata.organizations"
-                            icon="group"
-                            label={i18next.t("Organizations")}
-                          />
-                        }
-                        noQueryMessage={i18next.t("Search for organizations...")}
-                        allowAdditions
-                        search={(filteredOptions, searchQuery) => filteredOptions}
-                      />
+                          })}
+                        />
+                      </Overridable>
+
+                      <Overridable
+                        id="InvenioCommunities.CommunityProfileForm.TextField.MetadataWebsite"
+                        community={community}
+                      >
+                        <TextField
+                          fieldPath="metadata.website"
+                          label={
+                            <FieldLabel
+                              htmlFor="metadata.website"
+                              icon="chain"
+                              label={i18next.t("Website")}
+                            />
+                          }
+                          fluid
+                        />
+                      </Overridable>
+
+                      <Overridable
+                        id="InvenioCommunities.CommunityProfileForm.RemoteSelectField.MetadataOrganizations"
+                        community={community}
+                      >
+                        <RemoteSelectField
+                          fieldPath="metadata.organizations"
+                          suggestionAPIUrl="/api/affiliations"
+                          suggestionAPIHeaders={{
+                            Accept: "application/json",
+                          }}
+                          placeholder={i18next.t("Search for an organization by name")}
+                          clearable
+                          multiple
+                          initialSuggestions={_get(
+                            community,
+                            "metadata.organizations",
+                            []
+                          )}
+                          serializeSuggestions={(organizations) =>
+                            _map(organizations, (organization) => {
+                              // eslint-disable-next-line no-prototype-builtins
+                              const isKnownOrg = this.knownOrganizations.hasOwnProperty(
+                                organization.name
+                              );
+                              if (!isKnownOrg) {
+                                this.knownOrganizations = {
+                                  ...this.knownOrganizations,
+                                  [organization.name]: organization.id,
+                                };
+                              }
+                              return {
+                                text: organization.name,
+                                value: organization.name,
+                                key: organization.name,
+                              };
+                            })
+                          }
+                          label={
+                            <FieldLabel
+                              htmlFor="metadata.organizations"
+                              icon="group"
+                              label={i18next.t("Organizations")}
+                            />
+                          }
+                          noQueryMessage={i18next.t("Search for organizations...")}
+                          allowAdditions
+                          search={(filteredOptions, searchQuery) => filteredOptions}
+                        />
+                      </Overridable>
                     </div>
                   </AccordionField>
 
-                  <AccordionField
-                    includesPaths={["metadata.funding"]}
-                    label={i18next.t("Funding information")}
-                    active
+                  <Overridable
+                    id="InvenioCommunities.CommunityProfileForm.AccordionField.MetadataFunding"
+                    community={community}
                   >
-                    <div className="rel-ml-1 rel-mr-1">
-                      <FundingField
-                        fieldPath="metadata.funding"
-                        searchConfig={{
-                          searchApi: {
-                            axios: {
-                              headers: {
-                                Accept: "application/vnd.inveniordm.v1+json",
+                    <AccordionField
+                      includesPaths={["metadata.funding"]}
+                      label={i18next.t("Funding information")}
+                      active
+                    >
+                      <div className="rel-ml-1 rel-mr-1">
+                        <FundingField
+                          fieldPath="metadata.funding"
+                          searchConfig={{
+                            searchApi: {
+                              axios: {
+                                headers: {
+                                  Accept: "application/vnd.inveniordm.v1+json",
+                                },
+                                url: "/api/awards",
+                                withCredentials: false,
                               },
-                              url: "/api/awards",
-                              withCredentials: false,
                             },
-                          },
-                          initialQueryState: {
-                            sortBy: "bestmatch",
-                            sortOrder: "asc",
-                            layout: "list",
-                            page: 1,
-                            size: 5,
-                          },
-                        }}
-                        label={i18next.t("Awards")}
-                        labelIcon="money bill alternate outline"
-                        deserializeAward={(award) => {
-                          return {
-                            title: award.title_l10n,
-                            pid: award.pid,
-                            number: award.number,
-                            funder: award.funder ?? "",
-                            id: award.id,
-                            ...(award.identifiers && {
-                              identifiers: award.identifiers,
-                            }),
-                            ...(award.acronym && { acronym: award.acronym }),
-                          };
-                        }}
-                        deserializeFunder={(funder) => {
-                          return {
-                            id: funder.id,
-                            name: funder.name,
-                            ...(funder.title_l10n && { title: funder.title_l10n }),
-                            ...(funder.pid && { pid: funder.pid }),
-                            ...(funder.country && { country: funder.country }),
-                            ...(funder.identifiers && {
-                              identifiers: funder.identifiers,
-                            }),
-                          };
-                        }}
-                        computeFundingContents={(funding) => {
-                          let headerContent,
-                            descriptionContent = "";
-                          let awardOrFunder = "award";
-                          if (funding.award) {
-                            headerContent = funding.award.title;
-                          }
-
-                          if (funding.funder) {
-                            const funderName =
-                              funding.funder?.name ??
-                              funding.funder?.title ??
-                              funding.funder?.id ??
-                              "";
-                            descriptionContent = funderName;
-                            if (!headerContent) {
-                              awardOrFunder = "funder";
-                              headerContent = funderName;
+                            initialQueryState: {
+                              sortBy: "bestmatch",
+                              sortOrder: "asc",
+                              layout: "list",
+                              page: 1,
+                              size: 5,
+                            },
+                          }}
+                          label={i18next.t("Awards")}
+                          labelIcon="money bill alternate outline"
+                          deserializeAward={(award) => {
+                            return {
+                              title: award.title_l10n,
+                              pid: award.pid,
+                              number: award.number,
+                              funder: award.funder ?? "",
+                              id: award.id,
+                              ...(award.identifiers && {
+                                identifiers: award.identifiers,
+                              }),
+                              ...(award.acronym && { acronym: award.acronym }),
+                            };
+                          }}
+                          deserializeFunder={(funder) => {
+                            return {
+                              id: funder.id,
+                              name: funder.name,
+                              ...(funder.title_l10n && { title: funder.title_l10n }),
+                              ...(funder.pid && { pid: funder.pid }),
+                              ...(funder.country && { country: funder.country }),
+                              ...(funder.identifiers && {
+                                identifiers: funder.identifiers,
+                              }),
+                            };
+                          }}
+                          computeFundingContents={(funding) => {
+                            let headerContent,
                               descriptionContent = "";
+                            let awardOrFunder = "award";
+                            if (funding.award) {
+                              headerContent = funding.award.title;
                             }
-                          }
 
-                          return {
-                            headerContent,
-                            descriptionContent,
-                            awardOrFunder,
-                          };
-                        }}
-                      />
-                    </div>
-                  </AccordionField>
+                            if (funding.funder) {
+                              const funderName =
+                                funding.funder?.name ??
+                                funding.funder?.title ??
+                                funding.funder?.id ??
+                                "";
+                              descriptionContent = funderName;
+                              if (!headerContent) {
+                                awardOrFunder = "funder";
+                                headerContent = funderName;
+                                descriptionContent = "";
+                              }
+                            }
+
+                            return {
+                              headerContent,
+                              descriptionContent,
+                              awardOrFunder,
+                            };
+                          }}
+                        />
+                      </div>
+                    </AccordionField>
+                  </Overridable>
 
                   {!_isEmpty(customFields.ui) && (
                     <CustomFields
@@ -571,20 +626,34 @@ class CommunityProfileForm extends Component {
                   computer={4}
                   floated="right"
                 >
-                  <LogoUploader
+                  <Overridable
+                    id="InvenioCommunities.CommunityProfileForm.LogoUploader.ProfilePicture"
                     community={community}
-                    hasLogo={hasLogo}
-                    defaultLogo={defaultLogo}
-                    onError={this.setGlobalError}
-                    logoMaxSize={logoMaxSize}
-                  />
+                  >
+                    <LogoUploader
+                      community={community}
+                      hasLogo={hasLogo}
+                      defaultLogo={defaultLogo}
+                      onError={this.setGlobalError}
+                      logoMaxSize={logoMaxSize}
+                    />
+                  </Overridable>
                 </Grid.Column>
               </Grid.Row>
-              <Grid.Row className="danger-zone">
-                <Grid.Column as="section" width={16}>
-                  <DangerZone community={community} onError={this.setGlobalError} />
-                </Grid.Column>
-              </Grid.Row>
+              <Overridable
+                id="InvenioCommunities.CommunityProfileForm.GridRow.DangerZone"
+                community={community}
+              >
+                <Grid.Row className="danger-zone">
+                  <Grid.Column as="section" width={16}>
+                    <DangerZone
+                      community={community}
+                      onError={this.setGlobalError}
+                      permissions={permissions}
+                    />
+                  </Grid.Column>
+                </Grid.Row>
+              </Overridable>
             </Grid>
           </Form>
         )}
@@ -600,6 +669,7 @@ CommunityProfileForm.propTypes = {
   logoMaxSize: PropTypes.number.isRequired,
   customFields: PropTypes.object.isRequired,
   types: PropTypes.array.isRequired,
+  permissions: PropTypes.object.isRequired,
 };
 
 export default CommunityProfileForm;

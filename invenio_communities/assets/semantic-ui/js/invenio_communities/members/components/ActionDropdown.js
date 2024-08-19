@@ -58,8 +58,15 @@ class ActionDropdown extends Component {
 
   render() {
     const { loading, actionSuccess, error } = this.state;
-    const { options, currentValue, optionsSerializer, disabled, direction, fluid } =
-      this.props;
+    const {
+      options,
+      currentValue,
+      optionsSerializer,
+      disabled,
+      direction,
+      fluid,
+      label,
+    } = this.props;
 
     return (
       <Overridable
@@ -73,12 +80,14 @@ class ActionDropdown extends Component {
       >
         <div className="flex align-items-center members-dropdown-container">
           <Dropdown
+            className="action-menu-width"
             options={optionsSerializer(options)}
             loading={loading}
             value={currentValue}
             openOnFocus={false}
             selectOnBlur={false}
             onChange={this.handleOnChange}
+            aria-label={label}
             disabled={disabled}
             direction={direction}
             fluid={fluid}
@@ -102,6 +111,7 @@ ActionDropdown.propTypes = {
   optionsSerializer: PropTypes.func,
   disabled: PropTypes.bool,
   direction: PropTypes.string,
+  label: PropTypes.string,
   resource: PropTypes.object.isRequired,
   fluid: PropTypes.bool,
 };
@@ -112,6 +122,7 @@ ActionDropdown.defaultProps = {
   direction: "right",
   optionsSerializer: dropdownOptionsGenerator,
   fluid: false,
+  label: "",
 };
 
 export default Overridable.component("ActionDropdown", ActionDropdown);

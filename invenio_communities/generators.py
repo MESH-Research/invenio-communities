@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2021 Graz University of Technology.
 # Copyright (C) 2021 TU Wien.
 # Copyright (C) 2022 Northwestern University.
@@ -12,17 +12,18 @@
 """Community permissions."""
 
 import operator
-from abc import abstractmethod
 from collections import namedtuple
 from functools import partial, reduce
 from itertools import chain
 
-from flask import current_app
 from flask_principal import UserNeed
 from invenio_access.permissions import any_user, system_process
 from invenio_records_permissions.generators import Generator
 from invenio_search.engine import dsl
 
+from .communities.records.systemfields.deletion_status import (
+    CommunityDeletionStatusEnum,
+)
 from .proxies import current_roles
 
 _Need = namedtuple("Need", ["method", "value", "role"])
@@ -130,10 +131,10 @@ class IfPolicyClosed(IfRestrictedBase):
     def __init__(self, field, then_, else_):
         """Initialize."""
         super().__init__(
-            lambda r: getattr(r.access, field, None)
-            if hasattr(r, "access")
-            else r.get("access", {}).get(
-                field
+            lambda r: (
+                getattr(r.access, field, None)
+                if hasattr(r, "access")
+                else r.get("access", {}).get(field)
             ),  # needed for running permission check at serialization time and avoid db query
             f"access.{field}",
             "closed",
@@ -141,6 +142,58 @@ class IfPolicyClosed(IfRestrictedBase):
             then_,
             else_,
         )
+
+
+class IfCommunityDeleted(Generator):
+    """Conditional generator for deleted communities."""
+
+    def __init__(self, then_, else_):
+        """Constructor."""
+        self.then_ = then_
+        self.else_ = else_
+
+    def generators(self, record):
+        """Get the "then" or "else" generators."""
+        if record is None:
+            # if no records, we assume it returns standard else response
+            return self.else_
+
+        is_deleted = record.deletion_status.is_deleted
+        return self.then_ if is_deleted else self.else_
+
+    def needs(self, record=None, **kwargs):
+        """Set of Needs granting permission."""
+        needs = [g.needs(record=record, **kwargs) for g in self.generators(record)]
+        return set(chain.from_iterable(needs))
+
+    def excludes(self, record=None, **kwargs):
+        """Set of Needs denying permission."""
+        needs = [g.excludes(record=record, **kwargs) for g in self.generators(record)]
+        return set(chain.from_iterable(needs))
+
+    def make_query(self, generators, **kwargs):
+        """Make a query for one set of generators."""
+        queries = [g.query_filter(**kwargs) for g in generators]
+        queries = [q for q in queries if q]
+        return reduce(operator.or_, queries) if queries else None
+
+    def query_filter(self, **kwargs):
+        """Filters for current identity."""
+        q_then = dsl.Q("match_all")
+        q_else = dsl.Q(
+            "term", **{"deletion_status": CommunityDeletionStatusEnum.PUBLISHED.value}
+        )
+        then_query = self.make_query(self.then_, **kwargs)
+        else_query = self.make_query(self.else_, **kwargs)
+
+        if then_query and else_query:
+            return (q_then & then_query) | (q_else & else_query)
+        elif then_query:
+            return (q_then & then_query) | q_else
+        elif else_query:
+            return q_else & else_query
+        else:
+            return q_else
 
 
 #
@@ -287,82 +340,3 @@ class AllowedMemberTypes(Generator):
                 if m not in self.allowed_member_types:
                     return [any_user]
         return []
-
-
-class GroupsEnabled(Generator):
-    """Generator to restrict if the groups are not enabled.
-
-    If the groups are not enabled, exclude any user for adding members of the
-    param member type.
-
-    A system process is allowed to do anything.
-    """
-
-    def __init__(self, *need_groups_enabled_types):
-        """Types that need the groups enabled."""
-        self.need_groups_enabled_types = need_groups_enabled_types
-
-    def excludes(self, member_types=None, **kwargs):
-        """Preventing needs."""
-        if member_types:
-            for m in member_types:
-                if (
-                    m in self.need_groups_enabled_types
-                    and not current_app.config["COMMUNITIES_GROUPS_ENABLED"]
-                ):
-                    return [any_user]
-        return []
-
-
-# TODO https://github.com/inveniosoftware/invenio-rdm-records/issues/1226
-class ConditionalGenerator(Generator):
-    """Generator that depends on whether a condition is true or not.
-
-    If...(
-        then_=[...],
-        else_=[...],
-    )
-    """
-
-    def __init__(self, then_, else_):
-        """Constructor."""
-        self.then_ = then_
-        self.else_ = else_
-
-    @abstractmethod
-    def _condition(self, **kwargs):
-        """Condition to choose generators set."""
-        raise NotImplementedError()
-
-    def _generators(self, record, **kwargs):
-        """Get the "then" or "else" generators."""
-        return self.then_ if self._condition(record=record, **kwargs) else self.else_
-
-    def needs(self, record=None, **kwargs):
-        """Set of Needs granting permission."""
-        needs = [
-            g.needs(record=record, **kwargs) for g in self._generators(record, **kwargs)
-        ]
-        return set(chain.from_iterable(needs))
-
-    def excludes(self, record=None, **kwargs):
-        """Set of Needs denying permission."""
-        excludes = [
-            g.excludes(record=record, **kwargs)
-            for g in self._generators(record, **kwargs)
-        ]
-        return set(chain.from_iterable(excludes))
-
-
-class IfConfig(ConditionalGenerator):
-    """Config-based conditional generator."""
-
-    def __init__(self, config_key, accept_values=[True], **kwargs):
-        """Initialize generator."""
-        self.accept_values = accept_values
-        self.config_key = config_key
-        super().__init__(**kwargs)
-
-    def _condition(self, **_):
-        """Check if the config value is truthy."""
-        return current_app.config.get(self.config_key) in self.accept_values

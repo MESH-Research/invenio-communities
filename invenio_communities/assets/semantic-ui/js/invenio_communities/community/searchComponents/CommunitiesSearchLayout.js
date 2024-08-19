@@ -1,27 +1,22 @@
-import React from "react";
 import {
   SearchAppFacets,
   SearchAppResultsPane,
 } from "@js/invenio_search_ui/components";
 import { i18next } from "@translations/invenio_communities/i18next";
-import { GridResponsiveSidebarColumn } from "react-invenio-forms";
-import { SearchBar } from "react-searchkit";
-import { Button, Container, Grid } from "semantic-ui-react";
 import PropTypes from "prop-types";
+import React from "react";
+import { GridResponsiveSidebarColumn } from "react-invenio-forms";
+import { SearchBar, Sort } from "react-searchkit";
+import { Button, Container, Grid } from "semantic-ui-react";
 
 export const CommunitiesSearchLayout = ({ config, appName }) => {
   const [sidebarVisible, setSidebarVisible] = React.useState(false);
   return (
     <Container>
       <Grid>
-        <Grid.Row>
-          <Grid.Column
-            only="mobile tablet"
-            mobile={2}
-            tablet={1}
-            verticalAlign="middle"
-            className="mt-10"
-          >
+        {/* Mobile/tablet search header */}
+        <Grid.Row className="mobile tablet only">
+          <Grid.Column mobile={2} tablet={1} verticalAlign="middle" className="mt-10">
             <Button
               basic
               icon="sliders"
@@ -29,26 +24,51 @@ export const CommunitiesSearchLayout = ({ config, appName }) => {
               aria-label={i18next.t("Filter results")}
             />
           </Grid.Column>
-          <Grid.Column
-            mobile={14}
-            tablet={9}
-            computer={8}
-            floated="right"
-            className="mt-10"
-          >
+
+          <Grid.Column mobile={14} tablet={15} floated="right" className="mt-10">
             <SearchBar placeholder={i18next.t("Search communities...")} />
           </Grid.Column>
-          <Grid.Column mobile={16} tablet={6} computer={4} className="mt-10">
-            <Button
-              positive
-              icon="upload"
-              labelPosition="left"
-              href="/communities/new"
-              content={i18next.t("New community")}
-              floated="right"
-            />
+        </Grid.Row>
+
+        <Grid.Row className="mobile tablet only">
+          <Grid.Column width={16} textAlign="right">
+            {config.sortOptions && (
+              <Sort
+                values={config.sortOptions}
+                label={(cmp) => (
+                  <>
+                    <label className="mr-10">{i18next.t("Sort by")}</label>
+                    {cmp}
+                  </>
+                )}
+              />
+            )}
           </Grid.Column>
         </Grid.Row>
+        {/* End mobile/tablet search header */}
+
+        {/* Desktop search header */}
+        <Grid.Row className="computer only">
+          <Grid.Column width={8} floated="right">
+            <SearchBar placeholder={i18next.t("Search communities...")} />
+          </Grid.Column>
+
+          <Grid.Column width={4} textAlign="right">
+            {config.sortOptions && (
+              <Sort
+                values={config.sortOptions}
+                label={(cmp) => (
+                  <>
+                    <label className="mr-10">{i18next.t("Sort by")}</label>
+                    {cmp}
+                  </>
+                )}
+              />
+            )}
+          </Grid.Column>
+        </Grid.Row>
+        {/* End desktop search header */}
+
         <Grid.Row>
           <GridResponsiveSidebarColumn
             width={4}
@@ -71,5 +91,9 @@ export const CommunitiesSearchLayout = ({ config, appName }) => {
 
 CommunitiesSearchLayout.propTypes = {
   config: PropTypes.object.isRequired,
-  appName: PropTypes.object.isRequired,
+  appName: PropTypes.string,
+};
+
+CommunitiesSearchLayout.defaultProps = {
+  appName: "",
 };

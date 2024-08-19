@@ -10,7 +10,7 @@ import PropTypes from "prop-types";
 import _truncate from "lodash/truncate";
 
 import { Image, InvenioPopup } from "react-invenio-forms";
-import { Item, Grid, Icon } from "semantic-ui-react";
+import { Icon, Label, Item } from "semantic-ui-react";
 import { CommunityTypeLabel, RestrictedLabel } from "../labels";
 
 export const CommunityCompactItemComputer = ({
@@ -19,79 +19,81 @@ export const CommunityCompactItemComputer = ({
   extraLabels,
   itemClassName,
   showPermissionLabel,
+  detailUrl,
+  isCommunityDefault,
 }) => {
   const { metadata, ui, links, access, id } = result;
   const communityType = ui?.type?.title_l10n;
-
   return (
     <Item
       key={id}
-      className={`computer tablet only justify-space-between community-item ${itemClassName}`}
+      className={`community-item tablet computer only display-grid auto-column-grid no-wrap ${itemClassName}`}
     >
-      <Image size="tiny" src={links.logo} alt="" />
-      <Grid>
-        <Grid.Column width={10}>
-          <Item.Content verticalAlign="middle">
-            <Item.Header
-              as="a"
-              href={links.self_html}
-              className="ui small header flex align-items-center mb-5"
+      <div className="flex align-items-center">
+        <Image
+          wrapped
+          size="tiny"
+          src={links.logo}
+          alt=""
+          className="community-image rel-mr-2"
+        />
+        <div>
+          <div className="flex align-items-center rel-mb-1">
+            <a
+              href={detailUrl || links.self_html}
+              className="ui small header truncate-lines-2 m-0 mr-5"
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${metadata.title} (${i18next.t("opens in new tab")})`}
             >
               {metadata.title}
-            </Item.Header>
+            </a>
+            <i className="small icon external primary" aria-hidden="true" />
+          </div>
+          {metadata.description && (
+            <p className="truncate-lines-1 text size small text-muted mt-5 rel-mb-1">
+              {_truncate(metadata.description, { length: 50 })}
+            </p>
+          )}
 
-            {metadata.description && (
-              <Item.Description
-                as="p"
-                dangerouslySetInnerHTML={{
-                  __html: _truncate(metadata.description, { length: 50 }),
-                }}
+          <div className="rel-mt-1">
+            {(result.access.visibility === "restricted" ||
+              communityType ||
+              extraLabels) && (
+              <>
+                <RestrictedLabel access={access.visibility} />
+                <CommunityTypeLabel type={communityType} />
+                {extraLabels}
+              </>
+            )}
+            {isCommunityDefault && (
+              <Label color="purple" size="tiny">
+                <Icon name="paint brush" />
+                {i18next.t("Branding")}
+              </Label>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex align-items-center justify-end">
+        {showPermissionLabel && (
+          <span className="rel-mr-1">
+            {ui?.permissions?.can_include_directly && (
+              <InvenioPopup
+                popupId="direct-publish-info-popup"
+                size="small"
+                trigger={<Icon name="paper plane outline neutral" size="large" />}
+                ariaLabel={i18next.t("Submission information")}
+                content={i18next.t(
+                  "Submission to this community does not require review, and will be published immediately."
+                )}
               />
             )}
-            <Item.Extra>
-              <RestrictedLabel access={access.visibility} />
-              <CommunityTypeLabel type={communityType} />
-              {extraLabels}
-            </Item.Extra>
-          </Item.Content>
-        </Grid.Column>
-        <Grid.Column width={5} verticalAlign="middle" align="right">
-          {showPermissionLabel && (
-            <Item.Content>
-              <Item.Meta>
-                {ui?.permissions?.can_include_directly && (
-                  <InvenioPopup
-                    popupId="direct-publish-info-popup"
-                    size="small"
-                    trigger={<Icon name="paper plane outline" size="large" />}
-                    ariaLabel={i18next.t("Submission information")}
-                    content={i18next.t(
-                      "Submission to this community does not require review, and will be published immediately."
-                    )}
-                  />
-                )}
-                {!ui?.permissions?.can_include_directly && (
-                  <InvenioPopup
-                    popupId="requires-review-popup"
-                    size="small"
-                    ariaLabel={i18next.t("Submission information")}
-                    trigger={
-                      <span>
-                        <Icon name="comments outline" size="large" />
-                        <Icon corner="top right" name="question" size="small" fitted />
-                      </span>
-                    }
-                    content={i18next.t(
-                      "Submission to this community requires review and will be published upon curator's approval."
-                    )}
-                  />
-                )}
-              </Item.Meta>
-            </Item.Content>
-          )}
-        </Grid.Column>
-      </Grid>
-      <div className="flex align-items-center">{actions}</div>
+          </span>
+        )}
+        {actions}
+      </div>
     </Item>
   );
 };
@@ -102,6 +104,8 @@ CommunityCompactItemComputer.propTypes = {
   extraLabels: PropTypes.node,
   itemClassName: PropTypes.string,
   showPermissionLabel: PropTypes.bool,
+  detailUrl: PropTypes.string,
+  isCommunityDefault: PropTypes.bool.isRequired,
 };
 
 CommunityCompactItemComputer.defaultProps = {
@@ -109,4 +113,5 @@ CommunityCompactItemComputer.defaultProps = {
   extraLabels: undefined,
   itemClassName: "",
   showPermissionLabel: false,
+  detailUrl: undefined,
 };

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2023 Graz University of Technology.
+# Copyright (C) 2023 KTH Royal Institute of Technology.
 #
 # Invenio is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -19,7 +20,7 @@ COMMUNITIES_ROUTES = {
     "frontpage": "/communities",
     "search": "/communities/search",
     "new": "/communities/new",
-    "details": "/communities/<pid_value>",
+    "upload": "/communities/<pid_value>/upload",
     "settings": "/communities/<pid_value>/settings",
     "requests": "/communities/<pid_value>/requests",
     "settings_privileges": "/communities/<pid_value>/settings/privileges",
@@ -32,9 +33,6 @@ COMMUNITIES_ROUTES = {
 }
 
 """Communities ui endpoints."""
-
-COMMUNITIES_GROUPS_ENABLED = True
-"""Config to allow invitation of groups."""
 
 COMMUNITIES_FACETS = {
     "type": {
@@ -124,6 +122,9 @@ COMMUNITIES_SEARCH = {
     "sort": ["bestmatch", "newest", "oldest"],
 }
 """Community search configuration (i.e list of communities)"""
+
+COMMUNITIES_SEARCH_SORT_BY_VERIFIED = False
+"""Sort communities by 'verified' first."""
 
 COMMUNITIES_REQUESTS_SEARCH = {
     "facets": ["type", "status"],
@@ -307,3 +308,8 @@ COMMUNITIES_IDENTITIES_CACHE_REDIS_URL = "redis://localhost:6379/4"
 COMMUNITIES_IDENTITIES_CACHE_HANDLER = (
     "invenio_communities.cache.redis:IdentityRedisCache"
 )
+
+COMMUNITIES_OAI_SETS_PREFIX = "community-"
+
+COMMUNITIES_ALWAYS_SHOW_CREATE_LINK = False
+"""Controls visibility of 'New Community' btn based on user's permission when set to True."""

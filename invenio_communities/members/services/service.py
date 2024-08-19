@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2022 Northwestern University.
-# Copyright (C) 2022 CERN.
+# Copyright (C) 2022-2024 CERN.
 # Copyright (C) 2022-2023 Graz University of Technology.
 #
 # Invenio-Communities is free software; you can redistribute it and/or modify
@@ -15,6 +15,7 @@ from flask import current_app
 from invenio_access.permissions import system_identity
 from invenio_accounts.models import Role
 from invenio_i18n import gettext as _
+from invenio_notifications.services.uow import NotificationOp
 from invenio_records_resources.services import LinksTemplate
 from invenio_records_resources.services.records import (
     RecordService,
@@ -35,6 +36,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.local import LocalProxy
 
+from ...notifications.builders import CommunityInvitationSubmittedNotificationBuilder
 from ...proxies import current_roles
 from ..errors import AlreadyMemberError, InvalidMemberError
 from ..records.api import ArchivedInvitation
@@ -276,10 +278,14 @@ class MemberService(RecordService):
             title = _('Invitation to join "{community}"').format(
                 community=community.metadata["title"],
             )
+            description = _('You will join as "{role}".').format(role=role.title)
 
             request_item = current_requests_service.create(
                 identity,
-                {"title": title},
+                {
+                    "title": title,
+                    "description": description,
+                },
                 CommunityInvitation,
                 {"user": member["id"]},
                 creator=community,
@@ -290,21 +296,28 @@ class MemberService(RecordService):
                 uow=uow,
             )
 
-            # add role as message
-            data = {
-                "payload": {
-                    "content": _('You will join as "{role}".').format(role=role.title),
-                }
-            }
-            current_events_service.create(
-                identity, request_item.id, data, CommentEventType, uow=uow
-            )
             # message was provided.
             if message:
                 data = {"payload": {"content": message}}
                 current_events_service.create(
-                    identity, request_item.id, data, CommentEventType, uow=uow
+                    identity,
+                    request_item.id,
+                    data,
+                    CommentEventType,
+                    uow=uow,
+                    notify=False,
                 )
+
+            uow.register(
+                NotificationOp(
+                    CommunityInvitationSubmittedNotificationBuilder.build(
+                        request=request_item._request,
+                        # explicit string conversion to get the value of LazyText
+                        role=str(role.title),
+                        message=message,
+                    )
+                )
+            )
 
             # Create an inactive member entry linked to the request.
             self._add_factory(
@@ -380,9 +393,8 @@ class MemberService(RecordService):
         """Search public members matching the querystring."""
         # The search for members is split two methods (public, members) to
         # prevent leaking of information. E.g. the public serialization
-        # must now have all fields present.
-        # TODO: limit fields on which the query works on to avoid leaking
-        # information
+        # must not have all fields present.
+        # TODO: limit fields on which the query works on to avoid leaking information
         return self._members_search(
             identity,
             community_id,
@@ -465,14 +477,16 @@ class MemberService(RecordService):
             identity,
             search_result,
             params,
-            links_tpl=None
-            if scan
-            else LinksTemplate(
-                self.config.links_search,
-                context={
-                    "args": params,
-                    "community_id": community_id,
-                },
+            links_tpl=(
+                None
+                if scan
+                else LinksTemplate(
+                    self.config.links_search,
+                    context={
+                        "args": params,
+                        "community_id": community_id,
+                    },
+                )
             ),
             schema=schema,
         )

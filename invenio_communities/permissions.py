@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2021 Graz University of Technology.
 # Copyright (C) 2021 TU Wien.
 # Copyright (C) 2022 Northwestern University.
@@ -16,9 +16,12 @@ from invenio_records_permissions.generators import (
     AnyUser,
     AuthenticatedUser,
     Disable,
+    IfConfig,
     SystemProcess,
 )
 from invenio_records_permissions.policies import BasePermissionPolicy
+from invenio_users_resources.services.generators import GroupsEnabled
+from invenio_users_resources.services.permissions import UserManager
 
 from .generators import (
     AllowedMemberTypes,
@@ -28,8 +31,7 @@ from .generators import (
     CommunityMembers,
     CommunityOwners,
     CommunitySelfMember,
-    GroupsEnabled,
-    IfConfig,
+    IfCommunityDeleted,
     IfPolicyClosed,
     IfRestricted,
 )
@@ -47,9 +49,18 @@ class CommunityPermissionPolicy(BasePermissionPolicy):
         SystemProcess(),
     ]
 
+    # Used for search filtering of deleted records
+    # cannot be implemented inside can_read - otherwise permission will
+    # kick in before tombstone renders
+    can_read_deleted = [
+        IfCommunityDeleted(then_=[UserManager, SystemProcess()], else_=can_read)
+    ]
+
     can_update = [CommunityOwners(), SystemProcess()]
 
     can_delete = [CommunityOwners(), SystemProcess()]
+
+    can_purge = [CommunityOwners(), SystemProcess()]
 
     can_manage_access = [
         IfConfig("COMMUNITIES_ALLOW_RESTRICTED", then_=can_update, else_=[]),
@@ -116,7 +127,17 @@ class CommunityPermissionPolicy(BasePermissionPolicy):
     ]
 
     can_members_search_public = [
-        IfRestricted("visibility", then_=[CommunityMembers()], else_=[AnyUser()]),
+        IfRestricted(
+            "visibility",
+            then_=[CommunityMembers()],
+            else_=[
+                IfRestricted(
+                    "members_visibility",
+                    then_=[CommunityMembers()],
+                    else_=[AnyUser()],
+                ),
+            ],
+        ),
         SystemProcess(),
     ]
 
@@ -146,6 +167,20 @@ class CommunityPermissionPolicy(BasePermissionPolicy):
     can_featured_create = [Administration(), SystemProcess()]
     can_featured_update = [Administration(), SystemProcess()]
     can_featured_delete = [Administration(), SystemProcess()]
+
+    # Used to hide at the moment the `is_verified` field. It should be set to
+    # correct permissions based on which the field will be exposed only to moderators
+    can_moderate = [Disable()]
+
+    # Permissions to crud community theming
+    can_set_theme = [SystemProcess()]
+    can_delete_theme = can_set_theme
+
+    # Permissions to set if communities can have children
+    can_manage_children = [SystemProcess()]
+
+    # Permission for assinging a parent community
+    can_manage_parent = [Administration(), SystemProcess()]
 
 
 def can_perform_action(community, context):

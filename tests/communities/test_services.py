@@ -9,16 +9,26 @@
 """Test community service."""
 
 import time
+import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta
 
+import arrow
 import pytest
 from invenio_access.permissions import system_identity
 from invenio_cache import current_cache
+from invenio_pidstore.errors import PIDDoesNotExistError
 from invenio_records_resources.services.errors import PermissionDeniedError
 from marshmallow import ValidationError
 
-from invenio_communities.errors import CommunityFeaturedEntryDoesNotExistError
+from invenio_communities.communities.records.systemfields.deletion_status import (
+    CommunityDeletionStatusEnum,
+)
+from invenio_communities.communities.services.service import get_cached_community_slug
+from invenio_communities.errors import (
+    CommunityFeaturedEntryDoesNotExistError,
+    DeletionStatusError,
+)
 from invenio_communities.fixtures.tasks import reindex_featured_entries
 
 
@@ -391,3 +401,364 @@ def test_search_community_requests(
         community_service.search_community_requests(
             identity=anon_identity, community_id=community.id
         )
+
+
+#
+# Deletion workflows
+#
+
+
+def test_community_deletion(community_service, users, comm):
+    """Test simple community deletion of a community."""
+    user = users["owner"].user
+    community = comm
+
+    assert community._obj.deletion_status == CommunityDeletionStatusEnum.PUBLISHED
+
+    # delete the community
+    tombstone_info = {"note": "no specific reason, tbh"}
+    community = community_service.delete(system_identity, community.id, tombstone_info)
+    tombstone = community._obj.tombstone
+
+    # check if the tombstone information got added as expected
+    assert community._obj.deletion_status == CommunityDeletionStatusEnum.DELETED
+    assert tombstone.is_visible
+    assert tombstone.removed_by == {"user": "system"}
+    assert tombstone.removal_reason is None
+    assert tombstone.note == tombstone_info["note"]
+    assert isinstance(tombstone.citation_text, str)
+    assert arrow.get(tombstone.removal_date).date() == datetime.utcnow().date()
+
+    # mark the community for purge
+    community = community_service.mark_community_for_purge(
+        system_identity, community.id
+    )
+    assert community._obj.deletion_status == CommunityDeletionStatusEnum.MARKED
+    assert community._obj.deletion_status.is_deleted
+    assert community._obj.tombstone is not None
+
+    # remove the mark again, we don't wanna purge it after all
+    community = community_service.unmark_community_for_purge(
+        system_identity, community.id
+    )
+    assert community._obj.deletion_status == CommunityDeletionStatusEnum.DELETED
+    assert community._obj.deletion_status.is_deleted
+    assert community._obj.tombstone is not None
+
+    # restore the community, it wasn't so bad after all
+    community = community_service.restore_community(system_identity, community.id)
+    assert community._obj.deletion_status == CommunityDeletionStatusEnum.PUBLISHED
+    assert not community._obj.deletion_status.is_deleted
+    assert community._obj.tombstone is None
+
+
+def test_invalid_community_deletion_workflows(community_service, comm):
+    """Test the wrong order of deletion operations."""
+    assert comm._obj.deletion_status == CommunityDeletionStatusEnum.PUBLISHED
+
+    # we cannot restore a published community
+    with pytest.raises(DeletionStatusError):
+        community_service.restore_community(system_identity, comm.id)
+
+    # we cannot mark a published community for purge
+    with pytest.raises(DeletionStatusError):
+        community_service.mark_community_for_purge(system_identity, comm.id)
+
+    # we cannot unmark a published community
+    with pytest.raises(DeletionStatusError):
+        community_service.unmark_community_for_purge(system_identity, comm.id)
+
+    comm = community_service.delete(system_identity, comm.id, {})
+    assert comm._obj.deletion_status == CommunityDeletionStatusEnum.DELETED
+
+    # we cannot unmark a deleted community
+    with pytest.raises(DeletionStatusError):
+        community_service.unmark_community_for_purge(system_identity, comm.id)
+
+    comm = community_service.mark_community_for_purge(system_identity, comm.id)
+    assert comm._obj.deletion_status == CommunityDeletionStatusEnum.MARKED
+
+    # we cannot directly restore a community marked for purge
+    with pytest.raises(DeletionStatusError):
+        community_service.restore_community(system_identity, comm.id)
+
+
+def test_get_cached_community_slug(community_service, comm, db, search_clear):
+    """Test get_cached_community_slug."""
+    c1 = community_service.create(
+        identity=system_identity, data={**comm.data, "slug": "myslug"}
+    )
+    c2 = community_service.create(
+        identity=system_identity, data={**comm.data, "slug": "myslug2"}
+    )
+    # reset
+    get_cached_community_slug.cache_clear()
+    # cache miss
+    slug = get_cached_community_slug(c1.id, community_service.id)
+    assert slug == "myslug"
+    hits, misses = get_cached_community_slug.cache_info()
+    assert (hits, misses) == (0, 1)
+    # cache hit
+    slug = get_cached_community_slug(c1.id, community_service.id)
+    assert slug == "myslug"
+    hits, misses = get_cached_community_slug.cache_info()
+    assert (hits, misses) == (1, 1)
+    # cache miss
+    slug = get_cached_community_slug(c2.id, community_service.id)
+    assert slug == "myslug2"
+    hits, misses = get_cached_community_slug.cache_info()
+    assert (hits, misses) == (1, 2)
+
+    with pytest.raises(PIDDoesNotExistError):
+        random_uuid = uuid.uuid4()
+        get_cached_community_slug(random_uuid, community_service.id)
+
+
+def test_theme_updates(
+    app,
+    db,
+    search_clear,
+    location,
+    anon_identity,
+    community_service,
+    community,
+    members,
+    new_user,
+):
+    current_cache.clear()
+    owner = members["owner"]
+
+    theme_data = {
+        "theme": {
+            "style": {
+                "primaryColor": "#004494",
+                "tertiaryColor": "#e3eefd",
+                "secondaryColor": "#FFD617",
+                "primaryTextColor": "#FFFFFF",
+                "tertiaryTextColor": "#1c5694",
+                "secondaryTextColor": "#000000",
+                "mainHeaderBackgroundColor": "#FFFFFF",
+                "font": {"size": "16px", "family": "Arial, sans-serif", "weight": 600},
+            },
+            "brand": "horizon",
+        }
+    }
+
+    # Update theme
+    community_data = deepcopy(community.data)
+    community_data.update(theme_data)
+
+    # check if owner can update theme (early stage: it should not be possible)
+    with pytest.raises(PermissionDeniedError):
+        community_service.update(owner.identity, community.id, community_data)
+
+    # only system can update the theme
+    community_service.update(system_identity, community.id, community_data)
+    community_item = community_service.read(system_identity, community.id)
+    assert community_item.data["theme"]["brand"] == "horizon"
+
+    # Update community data without passing theme should keep the stored theme
+    community_data = deepcopy(community_item.data)
+    community_data.pop("theme")
+
+    community_service.update(system_identity, community.id, community_data)
+    # Refresh index
+    community_service.record_cls.index.refresh()
+
+    # owner, anon, and system should be able to read the theme and see in search
+    for idty in (owner.identity, anon_identity, system_identity):
+        community_item = community_service.read(idty, community.id)
+        assert community_item.data["theme"]["brand"] == "horizon"
+        community_search = community_service.search(idty)
+        assert next(community_search.hits)["theme"]["brand"] == "horizon"
+
+    # Delete theme by setting to None
+    community_data = deepcopy(community_item.data)
+    community_data["theme"] = None
+
+    # check if owner can delete theme (early stage: it should not be possible)
+    with pytest.raises(PermissionDeniedError):
+        community_service.update(owner.identity, community.id, community_data)
+
+    # only system can delete the theme
+    community_service.update(system_identity, community.id, community_data)
+    community_item = community_service.read(system_identity, community.id)
+    assert community_item.data.get("theme") is None
+
+    # Set {theme: None} to a community that doesn't have any stored theme should not
+    # store None value
+    community_data = deepcopy(community_item.data)
+    community_data["theme"] = None
+    community_service.update(system_identity, community.id, community_data)
+    community_item = community_service.read(system_identity, community.id)
+    assert community_item.data.get("theme") is None
+    assert "theme" not in community_item.data
+
+
+def test_children_updates(
+    app,
+    db,
+    search_clear,
+    location,
+    community_service,
+    community,
+    members,
+):
+    current_cache.clear()
+    owner = members["owner"]
+
+    # Update children
+    community_data = deepcopy(community.data)
+    community_data.update(dict(children=dict(allow=True)))
+
+    # check if owner can update the children
+    with pytest.raises(PermissionDeniedError):
+        community_service.update(owner.identity, community.id, community_data)
+
+    # only system can update the children
+    community_service.update(system_identity, community.id, community_data)
+    community_item = community_service.read(system_identity, community.id)
+    assert community_item.data["children"]["allow"] == True
+
+    # Update community data without passing children should keep the stored values
+    community_data = deepcopy(community_item.data)
+    community_data.pop("children")
+
+    # Owner should be able to perfrom this operation since is not changing the children
+    community_service.update(owner.identity, community.id, community_data)
+    # Refresh index
+    community_service.record_cls.index.refresh()
+
+
+def test_parent_create(community_service, comm):
+    parent = comm
+    community_service.update(
+        identity=system_identity,
+        id_=str(parent.id),
+        data={**parent.data, "children": {"allow": True}},
+    )
+    child = community_service.create(
+        identity=system_identity,
+        data={**comm.data, "slug": "child", "parent": {"id": str(parent.id)}},
+    )
+    assert str(child._obj.parent.id) == parent.id
+
+
+def test_parent_update(community_service, comm):
+    parent = comm
+    community_service.update(
+        identity=system_identity,
+        id_=str(parent.id),
+        data={**parent.data, "children": {"allow": True}},
+    )
+    child = community_service.create(
+        identity=system_identity, data={**comm.data, "slug": "child1"}
+    )
+
+    child = community_service.update(
+        identity=system_identity,
+        id_=str(child.id),
+        data={**child.data, "parent": {"id": str(parent.id)}},
+    )
+    assert str(child._obj.parent.id) == parent.id
+
+
+def test_parent_remove(community_service, comm):
+    parent = comm
+    community_service.update(
+        identity=system_identity,
+        id_=str(parent.id),
+        data={**parent.data, "children": {"allow": True}},
+    )
+    child = community_service.create(
+        identity=system_identity,
+        data={**comm.data, "slug": "child2", "parent": {"id": str(parent.id)}},
+    )
+
+    child = community_service.update(
+        identity=system_identity, id_=str(child.id), data={**child.data, "parent": None}
+    )
+    assert child._obj.parent == None
+
+
+def test_update_parent_community_not_exists(community_service, comm):
+    child = comm
+
+    with pytest.raises(ValidationError) as e:
+        community_service.update(
+            identity=system_identity,
+            id_=str(child.id),
+            data={**child.data, "parent": {"id": str(uuid.uuid4())}},
+        )
+
+
+def test_parent_update_parent_children_not_allowed(community_service, comm):
+    parent = comm
+
+    child = community_service.create(
+        identity=system_identity, data={**comm.data, "slug": "child4"}
+    )
+
+    with pytest.raises(ValidationError) as e:
+        community_service.update(
+            identity=system_identity,
+            id_=str(child.id),
+            data={**child.data, "parent": {"id": str(parent.id)}},
+        )
+
+
+def test_parent_update_child_children_are_allowed(community_service, comm):
+    parent = comm
+
+    child = community_service.create(
+        identity=system_identity, data={**comm.data, "slug": "child5"}
+    )
+    community_service.update(
+        identity=system_identity,
+        id_=str(parent.id),
+        data={**parent.data, "children": {"allow": True}},
+    )
+    child = community_service.update(
+        identity=system_identity,
+        id_=str(child.id),
+        data={**child.data, "children": {"allow": True}},
+    )
+
+    with pytest.raises(ValidationError) as e:
+        community_service.update(
+            identity=system_identity,
+            id_=str(child.id),
+            data={**child.data, "parent": {"id": str(parent.id)}},
+        )
+
+
+def test_bulk_update_parent(
+    community_service, parent_community, comm, restricted_community
+):
+    """Test bulk add parent to children."""
+    children = [comm.id, restricted_community.id]
+    parent_community.children.allow = True
+    parent_community.commit()
+    community_service.bulk_update_parent(system_identity, children, parent_community.id)
+    for c_id in children:
+        c_comm = community_service.record_cls.pid.resolve(c_id)
+        assert str(c_comm.parent.id) == str(parent_community.id)
+
+
+def test_bulk_update_parent_overwrite(
+    community_service, parent_community, comm, restricted_community
+):
+    """Test bulk update parent of communities that are already parented."""
+    children = [comm.id]
+    parent_community.children.allow = True
+    parent_community.commit()
+    community_service.bulk_update_parent(system_identity, children, parent_community.id)
+    for c_id in children:
+        c_comm = community_service.record_cls.pid.resolve(c_id)
+        assert str(c_comm.parent.id) == str(parent_community.id)
+
+    children = [comm.id, restricted_community.id]
+    community_service.bulk_update_parent(system_identity, children, parent_community.id)
+    for c_id in children:
+        c_comm = community_service.record_cls.pid.resolve(c_id)
+        assert str(c_comm.parent.id) == str(parent_community.id)

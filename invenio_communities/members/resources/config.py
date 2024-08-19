@@ -3,6 +3,7 @@
 # Copyright (C) 2022 KTH Royal Institute of Technology
 # Copyright (C) 2022 Northwestern University.
 # Copyright (C) 2022 CERN.
+# Copyright (C) 2023 TU Wien.
 #
 # Invenio-Communities is free software; you can redistribute it and/or modify
 # it under the terms of the MIT License; see LICENSE file for more details.
@@ -11,8 +12,10 @@
 
 import marshmallow as ma
 from flask_resources import HTTPJSONException, create_error_handler
+from invenio_i18n import lazy_gettext as _
 from invenio_records_resources.resources import RecordResourceConfig
 
+from ...errors import CommunityDeletedError
 from ..errors import AlreadyMemberError, InvalidMemberError
 
 
@@ -43,6 +46,13 @@ class MemberResourceConfig(RecordResourceConfig):
             HTTPJSONException(
                 code=400,
                 description="A member was already added or invited.",
+            )
+        ),
+        CommunityDeletedError: create_error_handler(
+            lambda e: (
+                HTTPJSONException(
+                    code=410, description=_("The record has been deleted.")
+                )
             )
         ),
     }

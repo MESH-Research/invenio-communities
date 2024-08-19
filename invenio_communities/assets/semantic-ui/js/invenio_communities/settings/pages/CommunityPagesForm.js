@@ -11,7 +11,7 @@ import { Formik } from "formik";
 import _defaultsDeep from "lodash/defaultsDeep";
 import React, { Component } from "react";
 import { RichInputField, AccordionField } from "react-invenio-forms";
-import { Button, Form, Divider, Icon, Message } from "semantic-ui-react";
+import { Button, Form, Icon, Message } from "semantic-ui-react";
 import { CommunityApi } from "../../api";
 import { communityErrorSerializer } from "../../api/serializers";
 import PropTypes from "prop-types";
@@ -19,8 +19,8 @@ import * as Yup from "yup";
 
 const COMMUNITY_PAGES_VALIDATION_SCHEMA = Yup.object({
   metadata: Yup.object({
-    curation_policy: Yup.string().max(2000, "Maximum number of characters is 2000"),
-    page: Yup.string().max(2000, "Maximum number of characters is 2000"),
+    curation_policy: Yup.string().max(50000, "Maximum number of characters is 50000"),
+    page: Yup.string().max(50000, "Maximum number of characters is 50000"),
   }),
 });
 
@@ -96,7 +96,6 @@ export class CommunityPagesForm extends Component {
                 fluid
               />
             </AccordionField>
-            <Divider hidden className="rel-mt-5" />
             <AccordionField
               includesPaths={["metadata.page"]}
               label={i18next.t("About page")}

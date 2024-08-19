@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2021 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2023 Graz University of Technology.
 #
 # Invenio is free software; you can redistribute it and/or modify it
@@ -28,16 +28,19 @@ from marshmallow import (
     Schema,
     ValidationError,
     fields,
+    post_dump,
     post_load,
     pre_load,
     validate,
 )
 from marshmallow_utils.fields import (
-    Links,
+    URL,
+    ISODateString,
     NestedAttribute,
     SanitizedHTML,
     SanitizedUnicode,
 )
+from marshmallow_utils.permissions import FieldPermissionsMixin
 
 
 def _not_blank(**kwargs):
@@ -48,7 +51,7 @@ def _not_blank(**kwargs):
             "Field cannot be blank or longer than {max_} characters.".format(max_=max_)
         ),
         min=1,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -57,7 +60,7 @@ def no_longer_than(max, **kwargs):
     return validate.Length(
         error=_("Field cannot be longer than {max} characters.".format(max=max)),
         max=max,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -76,6 +79,14 @@ class CommunityAccessSchema(Schema):
     """Community Access Schema."""
 
     visibility = fields.Str(
+        validate=validate.OneOf(
+            [
+                "public",
+                "restricted",
+            ]
+        )
+    )
+    members_visibility = fields.Str(
         validate=validate.OneOf(
             [
                 "public",
@@ -114,13 +125,13 @@ class CommunityMetadataSchema(Schema):
     """Community metadata schema."""
 
     title = SanitizedUnicode(required=True, validate=_not_blank(max=250))
-    description = SanitizedUnicode(validate=_not_blank(max=2000))
+    description = SanitizedUnicode(validate=_not_blank(max=250))
 
-    curation_policy = SanitizedHTML(validate=no_longer_than(max=2000))
-    page = SanitizedHTML(validate=no_longer_than(max=2000))
+    curation_policy = SanitizedHTML(validate=no_longer_than(max=50000))
+    page = SanitizedHTML(validate=no_longer_than(max=50000))
 
     type = fields.Nested(VocabularySchema, metadata={"type": "communitytypes"})
-    website = fields.Url(validate=_not_blank())
+    website = URL(validate=_not_blank())
     funding = fields.List(fields.Nested(FundingRelationSchema))
     organizations = fields.List(fields.Nested(AffiliationRelationSchema))
 
@@ -128,13 +139,75 @@ class CommunityMetadataSchema(Schema):
     # domains = fields.List(fields.Str())
 
 
-class CommunitySchema(BaseRecordSchema):
-    """Schema for the community metadata."""
+class AgentSchema(Schema):
+    """An agent schema, using a string for the ID to allow the "system" user."""
+
+    user = fields.String(required=True)
+
+
+class RemovalReasonSchema(VocabularySchema):
+    """Schema for the removal reason."""
+
+    id = fields.String(required=True)
+
+
+class TombstoneSchema(Schema):
+    """Schema for the record's tombstone."""
+
+    removal_reason = fields.Nested(RemovalReasonSchema)
+    note = SanitizedUnicode()
+    removed_by = fields.Nested(AgentSchema, dump_only=True)
+    removal_date = ISODateString(dump_only=True)
+    citation_text = SanitizedUnicode()
+    is_visible = fields.Boolean()
+
+
+class DeletionStatusSchema(Schema):
+    """Schema for the record deletion status."""
+
+    is_deleted = fields.Boolean(dump_only=True)
+    status = fields.String(dump_only=True)
+
+
+class CommunityThemeStyleSchema(Schema):
+    """Community Theme configuration schema."""
+
+    font = fields.Dict()
+    primaryColor = fields.Str()
+    secondaryColor = fields.Str()
+    tertiaryColor = fields.Str()
+    primaryTextColor = fields.Str()
+    secondaryTextColor = fields.Str()
+    tertiaryTextColor = fields.Str()
+    mainHeaderBackgroundColor = fields.Str()
+
+
+class CommunityThemeSchema(Schema):
+    """Community theme schema."""
+
+    style = fields.Nested(CommunityThemeStyleSchema)
+    brand = fields.Str()
+    enabled = fields.Boolean()
+
+
+class ChildrenSchema(Schema):
+    """Children schema."""
+
+    allow = fields.Boolean()
+
+
+class BaseCommunitySchema(BaseRecordSchema, FieldPermissionsMixin):
+    """Base schema for the community metadata."""
 
     class Meta:
         """Meta attributes for the schema."""
 
         unknown = EXCLUDE
+
+    field_dump_permissions = {
+        # hide 'is_verified' behind a permission
+        "is_verified": "moderate",
+    }
 
     id = fields.String(dump_only=True)
     slug = SanitizedUnicode(
@@ -155,6 +228,62 @@ class CommunitySchema(BaseRecordSchema):
     custom_fields = NestedAttribute(
         partial(CustomFieldsSchema, fields_var="COMMUNITIES_CUSTOM_FIELDS")
     )
+
+    is_verified = fields.Boolean(dump_only=True)
+
+    theme = fields.Nested(CommunityThemeSchema, allow_none=True)
+
+    tombstone = fields.Nested(TombstoneSchema, dump_only=True)
+
+    deletion_status = fields.Nested(DeletionStatusSchema, dump_only=True)
+
+    children = NestedAttribute(ChildrenSchema)
+
+    @post_dump
+    def post_dump(self, data, many, **kwargs):
+        """Hide tombstone info if the record isn't deleted and metadata if it is."""
+        is_deleted = (data.get("deletion_status") or {}).get("is_deleted", False)
+        tombstone_visible = (data.get("tombstone") or {}).get("is_visible", True)
+
+        if data.get("custom_fields") is None:
+            data.pop("custom_fields", None)
+
+        if data.get("theme") is None:
+            data.pop("theme", None)
+
+        if not is_deleted or not tombstone_visible:
+            data.pop("tombstone", None)
+
+        return data
+
+
+class CommunityParentSchema(BaseCommunitySchema):
+    """Community parent schema."""
+
+
+class CommunitySchema(BaseCommunitySchema):
+    """Community schema."""
+
+    parent = NestedAttribute(CommunityParentSchema, dump_only=True, allow_none=True)
+
+    @post_dump
+    def post_dump(self, data, many, **kwargs):
+        """Hide parent field if it's not present."""
+        data = super().post_dump(data, many, **kwargs)
+        if data.get("parent") is None:
+            data.pop("parent", None)
+        return data
+
+    @post_load(pass_original=True)
+    def filter_parent_id(self, in_data, original_data, **kwargs):
+        """Simply keep the parent id."""
+        if "parent" in original_data:
+            in_data["parent"] = (
+                dict(id=original_data["parent"]["id"])
+                if original_data["parent"]
+                else None
+            )
+        return in_data
 
     @pre_load
     def initialize_custom_fields(self, data, **kwargs):

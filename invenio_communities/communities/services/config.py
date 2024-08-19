@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of Invenio.
-# Copyright (C) 2016-2022 CERN.
+# Copyright (C) 2016-2024 CERN.
 # Copyright (C) 2022 Northwestern University.
 # Copyright (C) 2023 Graz University of Technology.
 #
@@ -40,9 +40,10 @@ from invenio_communities.communities.services.results import (
 )
 
 from ...permissions import CommunityPermissionPolicy, can_perform_action
-from ..schema import CommunityFeaturedSchema, CommunitySchema
+from ..schema import CommunityFeaturedSchema, CommunitySchema, TombstoneSchema
 from .components import DefaultCommunityComponents
 from .links import CommunityLink
+from .search_params import IncludeDeletedCommunitiesParam, StatusParam
 from .sort import CommunitiesSortParam
 
 
@@ -66,6 +67,8 @@ class SearchOptions(SearchOptionsBase, SearchOptionsMixin):
         PaginationParam,
         CommunitiesSortParam,
         FacetsParam,
+        StatusParam,
+        IncludeDeletedCommunitiesParam,
     ]
 
 
@@ -95,6 +98,7 @@ class CommunityServiceConfig(RecordServiceConfig, ConfiguratorMixin):
     # Service schema
     schema = CommunitySchema
     schema_featured = CommunityFeaturedSchema
+    schema_tombstone = TombstoneSchema
 
     result_list_cls_featured = CommunityFeaturedList
     result_item_cls_featured = FeaturedCommunityItem

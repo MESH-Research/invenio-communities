@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2021 CERN.
+# Copyright (C) 2021-2024 CERN.
 #
 # Invenio-Communities is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
@@ -12,10 +12,13 @@ The manager provides the API to add, remove and iterate over communities
 associated with a record.
 """
 
+import uuid
+
 from invenio_db import db
 from invenio_records.api import Record
 
 from invenio_communities.communities.records.api import Community
+from invenio_communities.errors import SetDefaultCommunityError
 
 
 class CommunitiesRelationManager:
@@ -35,8 +38,8 @@ class CommunitiesRelationManager:
     #
     def _to_id(self, val):
         """Get the community id."""
-        if isinstance(val, str):
-            return val
+        if isinstance(val, (str, uuid.UUID)):
+            return str(val)
         elif isinstance(val, Record):
             return str(val.id)
         return None
@@ -158,6 +161,11 @@ class CommunitiesRelationManager:
             return self._lookup_community(self._default_id)
         return None
 
+    @property
+    def entries(self):
+        """Get community objects list."""
+        return list(self)
+
     @default.setter
     def default(self, community_or_id):
         """Set the default community.
@@ -166,11 +174,8 @@ class CommunitiesRelationManager:
         not, then use ``.add(community, default=True)`` instead.
         """
         id_ = self._to_id(community_or_id)
-        if id_ not in self._communities_ids:
-            raise AttributeError(
-                "Cannot set community as the default. "
-                "The record has not been added to the community."
-            )
+        if id_ and id_ not in self._communities_ids:
+            raise SetDefaultCommunityError
         self._default_id = id_
 
     @default.deleter
@@ -196,4 +201,9 @@ class CommunitiesRelationManager:
         data = data or {}
         self._default_id = data.get("default", None)
         self._communities_ids = set(data.get("ids", []))
+        # Search results will have denormalized communities, so we can populate the
+        # cache from it.
+        entries = data.pop("entries", None)
+        if entries:
+            self._communities_cache = {c["id"]: Community.loads(c) for c in entries}
         return self

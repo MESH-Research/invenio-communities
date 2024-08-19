@@ -8,7 +8,7 @@
 
 """Utilities."""
 
-from flask import current_app, session
+from flask import session
 from flask_principal import Identity
 from invenio_accounts.models import Role
 from invenio_accounts.proxies import current_db_change_history
@@ -17,21 +17,6 @@ from .generators import CommunityRoleNeed
 from .proxies import current_communities, current_identities_cache
 
 IDENTITY_KEY = "user-communities:"
-
-
-def add_to_community_cache(community_id, identity_id):
-    """Updates the community cache."""
-    community_cache = current_identities_cache.get(community_id)
-    if community_cache and identity_id not in community_cache:
-        community_cache.append(identity_id)
-    else:
-        community_cache = [identity_id]
-    # This cache is set to the same duration as the identity caches, because it should not expire before
-    # This cache has a risk of being eternal therefore a cronjob that clears all the cache has to be set on a daily basis
-    current_identities_cache.set(
-        community_id,
-        community_cache,
-    )
 
 
 def load_community_needs(identity):
@@ -66,12 +51,12 @@ def load_community_needs(identity):
     community_roles = current_identities_cache.get(cache_key)
     if community_roles is None:
         # aka Member.get_memberships(identity)
-        group_ids = session.get("_unmanaged_groups", [])
+        roles_ids = session.get("unmanaged_roles_ids", [])
 
         member_cls = current_communities.service.members.config.record_cls
         managed_community_roles = member_cls.get_memberships(identity)
         unmanaged_community_roles = member_cls.get_memberships_from_group_ids(
-            identity, group_ids
+            identity, roles_ids
         )
         community_roles = managed_community_roles + unmanaged_community_roles
 

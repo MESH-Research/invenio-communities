@@ -9,16 +9,16 @@
 import { createSearchAppInit } from "@js/invenio_search_ui";
 import {
   ContribBucketAggregationElement,
-  ContribSearchAppFacets,
   ContribBucketAggregationValuesElement,
+  ContribSearchAppFacets,
 } from "@js/invenio_search_ui/components";
-import { CommunityItem } from "./";
-import { parametrize, overrideStore } from "react-overridable";
+import { overrideStore, parametrize } from "react-overridable";
 import {
-  ResultsGridItemTemplate,
   CommunitiesResults,
-  CommunitiesSearchLayout,
   CommunitiesSearchBarElement,
+  CommunitiesSearchLayout,
+  CommunityItem,
+  ResultsGridItemTemplate,
 } from "./";
 
 const appName = "InvenioCommunities.Search";

@@ -18,7 +18,7 @@ import * as Yup from "yup";
 
 const COMMUNITY_VALIDATION_SCHEMA = Yup.object({
   metadata: Yup.object({
-    curation_policy: Yup.string().max(2000, "Maximum number of characters is 2000"),
+    curation_policy: Yup.string().max(5000, "Maximum number of characters is 5000"),
   }),
 });
 
@@ -32,6 +32,7 @@ const ReviewPolicyField = ({ label, formConfig, ...props }) => {
             key={item.value}
             fieldPath="access.review_policy"
             label={item.text}
+            aria-label={item.text}
             labelIcon={item.icon}
             checked={_get(field.value, "access.review_policy") === item.value}
             value={item.value}

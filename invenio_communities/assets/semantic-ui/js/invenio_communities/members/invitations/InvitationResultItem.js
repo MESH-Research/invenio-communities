@@ -44,6 +44,7 @@ export class InvitationResultItem extends Component {
     } = this.state;
     const { api: invitationsApi } = this.context;
     const rolesCanInviteByType = rolesCanInvite[member.type];
+    const memberInvitationExpiration = formattedTime(request.expires_at);
     return (
       <Table.Row className="community-member-item">
         <Table.Cell>
@@ -59,12 +60,7 @@ export class InvitationResultItem extends Component {
                   </Item.Header>
                   {member.description && (
                     <Item.Meta>
-                      <div
-                        className="truncate-lines-1"
-                        dangerouslySetInnerHTML={{
-                          __html: member.description,
-                        }}
-                      />
+                      <div className="truncate-lines-1">{member.description}</div>
                     </Item.Meta>
                   )}
                 </Item.Content>
@@ -75,8 +71,11 @@ export class InvitationResultItem extends Component {
         <Table.Cell data-label={i18next.t("Status")}>
           <RequestStatus status={request.status} />
         </Table.Cell>
-        <Table.Cell data-label={i18next.t("Expires")}>
-          {formattedTime(request.expires_at)}
+        <Table.Cell
+          aria-label={i18next.t("Expires") + " " + memberInvitationExpiration}
+          data-label={i18next.t("Expires")}
+        >
+          {memberInvitationExpiration}
         </Table.Cell>
         <Table.Cell data-label={i18next.t("Role")}>
           <RoleDropdown
@@ -86,6 +85,7 @@ export class InvitationResultItem extends Component {
             disabled={!invitation.permissions.can_update_role}
             currentValue={invitation.role}
             resource={invitation}
+            label={i18next.t("Role") + " " + invitation.role}
           />
         </Table.Cell>
         <Table.Cell>

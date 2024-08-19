@@ -15,6 +15,7 @@ import { InvitationsResults } from "./InvitationsResults";
 import { InvitationsResultsContainer } from "./InvitationsResultsContainer";
 import { InvitationsSearchBarElement } from "./InvitationsSearchBarElement";
 import { InvitationsSearchLayout } from "./InvitationsSearchLayout";
+import { InvitationsEmptyResults } from "./InvitationsEmptyResults";
 import {
   SubmitStatus,
   DeleteStatus,
@@ -32,7 +33,7 @@ const permissions = JSON.parse(dataAttr.permissions);
 
 const appName = "InvenioCommunities.InvitationsSearch";
 
-const communityGroupsEnabled = JSON.parse(dataAttr.communityGroupsEnabled);
+const groupsEnabled = JSON.parse(dataAttr.groupsEnabled);
 
 const InvitationResultItemWithConfig = parametrize(InvitationResultItem, {
   config: { rolesCanInvite: communitiesRolesCanInvite },
@@ -44,7 +45,7 @@ const InvitationsSearchLayoutWithConfig = parametrize(InvitationsSearchLayout, {
   rolesCanInvite: communitiesRolesCanInvite,
   community: community,
   permissions: permissions,
-  communityGroupsEnabled: communityGroupsEnabled,
+  groupsEnabled: groupsEnabled,
   appName: appName,
 });
 
@@ -52,12 +53,25 @@ const InvitationsContextProvider = parametrize(ContextProvider, {
   community: community,
 });
 
+const InvitationsResultsContainerWithConfig = parametrize(InvitationsResultsContainer, {
+  rolesCanInvite: communitiesRolesCanInvite,
+  community: community,
+  groupsEnabled: groupsEnabled,
+});
+
+const InvitationsEmptyResultsWithCommunity = parametrize(InvitationsEmptyResults, {
+  community: community,
+  groupsEnabled: groupsEnabled,
+  rolesCanInvite: communitiesRolesCanInvite,
+});
+
 const defaultComponents = {
+  [`${appName}.EmptyResults.element`]: InvitationsEmptyResultsWithCommunity,
   [`${appName}.ResultsList.item`]: InvitationResultItemWithConfig,
   [`${appName}.SearchApp.layout`]: InvitationsSearchLayoutWithConfig,
   [`${appName}.SearchBar.element`]: InvitationsSearchBarElement,
   [`${appName}.SearchApp.results`]: InvitationsResults,
-  [`${appName}.ResultsList.container`]: InvitationsResultsContainer,
+  [`${appName}.ResultsList.container`]: InvitationsResultsContainerWithConfig,
   [`${appName}.Sort.element`]: DropdownSort,
   [`RequestStatus.layout.submitted`]: SubmitStatus,
   [`RequestStatus.layout.deleted`]: DeleteStatus,
