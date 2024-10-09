@@ -626,36 +626,26 @@ class CommunityProfileForm extends Component {
                   computer={4}
                   floated="right"
                 >
-                  <Overridable
-                    id="InvenioCommunities.CommunityProfileForm.LogoUploader.ProfilePicture"
+                  <LogoUploader
                     community={community}
-                  >
-                    <LogoUploader
-                      community={community}
-                      hasLogo={hasLogo}
-                      defaultLogo={defaultLogo}
-                      onError={this.setGlobalError}
-                      logoMaxSize={logoMaxSize}
-                    />
-                  </Overridable>
+                    hasLogo={hasLogo}
+                    defaultLogo={defaultLogo}
+                    onError={this.setGlobalError}
+                    logoMaxSize={logoMaxSize}
+                  />
                 </Grid.Column>
               </Grid.Row>
-              <Overridable
-                id="InvenioCommunities.CommunityProfileForm.GridRow.DangerZone"
-                community={community}
-              >
-                <Grid.Row className="danger-zone">
-                  <Grid.Column as="section" width={16}>
-                    <DangerZone
-                      community={community}
-                      onError={this.setGlobalError}
-                      permissions={permissions}
-                    />
-                  </Grid.Column>
-                </Grid.Row>
-              </Overridable>
-            </Grid>
-          </Form>
+              <Grid.Row className="danger-zone">
+                <Grid.Column as="section" width={16}>
+                  <DangerZone
+                    community={community}
+                    onError={this.setGlobalError}
+                    permissions={permissions}
+                />
+              </Grid.Column>
+            </Grid.Row>
+          </Grid>
+        </Form>
         )}
       </Formik>
     );

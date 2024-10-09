@@ -16,6 +16,7 @@ import { Button, Divider, Header, Icon, Message } from "semantic-ui-react";
 import { CommunityApi } from "../../api";
 import { DeleteButton } from "./DeleteButton";
 import PropTypes from "prop-types";
+import Overridable from "react-overridable";
 
 function noCacheUrl(url) {
   const result = new URL(url);
@@ -77,7 +78,15 @@ const LogoUploader = ({ community, defaultLogo, hasLogo, onError, logoMaxSize })
   };
 
   return (
-    <Dropzone {...dropzoneParams}>
+    <Overridable
+      id="InvenioCommunities.CommunityProfileForm.LogoUploader.ProfilePicture"
+      community={community}
+      hasLogo={hasLogo}
+      defaultLogo={defaultLogo}
+      onError={onError}
+      logoMaxSize={logoMaxSize}
+    >
+      <Dropzone {...dropzoneParams}>
       {({ getRootProps, getInputProps, open: openFileDialog }) => (
         <>
           <span {...getRootProps()}>
@@ -141,7 +150,8 @@ const LogoUploader = ({ community, defaultLogo, hasLogo, onError, logoMaxSize })
           )}
         </>
       )}
-    </Dropzone>
+      </Dropzone>
+    </Overridable>
   );
 };
 

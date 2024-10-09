@@ -14,10 +14,17 @@ import { CommunityApi } from "../../api";
 import { RenameCommunitySlugButton } from "./RenameCommunitySlugButton";
 import PropTypes from "prop-types";
 import { DeleteCommunityModal } from "./DeleteCommunityModal";
+import Overridable from "react-overridable";
 
 const DangerZone = ({ community, onError, permissions }) => {
   if (permissions.can_delete || permissions.can_rename) {
     return (
+      <Overridable
+        id="InvenioCommunities.CommunityProfileForm.GridRow.DangerZone"
+        community={community}
+        permissions={permissions}
+        onError={onError}
+      >
       <Segment className="negative rel-mt-2">
         <Header as="h2" className="negative">
           {i18next.t("Danger zone")}
@@ -66,7 +73,8 @@ const DangerZone = ({ community, onError, permissions }) => {
             </>
           )}
         </Grid>
-      </Segment>
+        </Segment>
+      </Overridable>
     );
   } else {
     return null;
