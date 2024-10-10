@@ -15,6 +15,7 @@ import React, { Component } from "react";
 import { RadioField } from "react-invenio-forms";
 import { Header } from "semantic-ui-react";
 import PropTypes from "prop-types";
+import Overridable from "react-overridable";
 
 const VisibilityField = ({ label, formConfig, ...props }) => {
   const [field] = useField(props);
@@ -96,50 +97,59 @@ class CommunityPrivilegesForm extends Component {
         initialValues={this.getInitialValues()}
         community={community}
       >
-        <Header as="h2" size="small">
-          {i18next.t("Community visibility")}
-          <Header.Subheader className="mt-5">
-            {i18next.t(
-              "Controls if the community is visible to anyone or to members only."
-            )}
-          </Header.Subheader>
-        </Header>
-        <VisibilityField formConfig={formConfig} />
-        <Header as="h2" size="small">
-          {i18next.t("Members visibility")}
-          <Header.Subheader className="mt-5">
-            {i18next.t(
-              "Controls if the members tab is visible to anyone or to members only."
-            )}
-          </Header.Subheader>
-        </Header>
-        <MembersVisibilityField formConfig={formConfig} />
-        {/* TODO: Re-enable once properly integrated to be displayed */}
-        {/*
-              <Grid.Column width={6}>
-                <Header as="h3">Records permissions</Header>
-                <p>This is a text explaining about the permission</p>
-                <SelectField
-                  fieldPath="access.record_policy"
-                  options={this.props.formConfig.access.record_policy}
-                />
-                <Button compact primary icon labelPosition="left">
-                  <Icon name="save"></Icon>Save
-                </Button>
-              </Grid.Column>
-              <Grid.Column width={10} />
-              <Grid.Column width={6}>
-                <Header as="h3">Members permission policy</Header>
-                <p>This is a text explaining about the permission</p>
-                <SelectField
-                  fieldPath="access.member_policy"
-                  options={this.props.formConfig.access.member_policy}
-                />
-                <Button compact primary icon labelPosition="left">
-                  <Icon name="save"></Icon>Save
-                </Button>
-              </Grid.Column>
-              <Grid.Column width={10} /> */}
+        <Overridable
+          id="InvenioCommunities.CommunityPrivilegesForm.layout"
+          formConfig={formConfig}
+          community={community}
+        >
+          <>
+          <Header as="h2" size="small">
+            {i18next.t("Community visibility")}
+            <Header.Subheader className="mt-5">
+              {i18next.t(
+                "Controls if the community is visible to anyone or to members only."
+              )}
+            </Header.Subheader>
+          </Header>
+          <VisibilityField formConfig={formConfig} />
+
+          <Header as="h2" size="small">
+            {i18next.t("Members visibility")}
+            <Header.Subheader className="mt-5">
+              {i18next.t(
+                "Controls if the members tab is visible to anyone or to members only."
+              )}
+            </Header.Subheader>
+          </Header>
+          <MembersVisibilityField formConfig={formConfig} />
+          {/* TODO: Re-enable once properly integrated to be displayed */}
+          {/*
+                <Grid.Column width={6}>
+                  <Header as="h3">Records permissions</Header>
+                  <p>This is a text explaining about the permission</p>
+                  <SelectField
+                    fieldPath="access.record_policy"
+                    options={this.props.formConfig.access.record_policy}
+                  />
+                  <Button compact primary icon labelPosition="left">
+                    <Icon name="save"></Icon>Save
+                  </Button>
+                </Grid.Column>
+                <Grid.Column width={10} />
+                <Grid.Column width={6}>
+                  <Header as="h3">Members permission policy</Header>
+                  <p>This is a text explaining about the permission</p>
+                  <SelectField
+                    fieldPath="access.member_policy"
+                    options={this.props.formConfig.access.member_policy}
+                  />
+                  <Button compact primary icon labelPosition="left">
+                    <Icon name="save"></Icon>Save
+                  </Button>
+                </Grid.Column>
+                <Grid.Column width={10} /> */}
+          </>
+        </Overridable>
       </CommunitySettingsForm>
     );
   }
@@ -151,3 +161,4 @@ CommunityPrivilegesForm.propTypes = {
 };
 
 export default CommunityPrivilegesForm;
+export { VisibilityField, MembersVisibilityField };

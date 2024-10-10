@@ -15,6 +15,7 @@ import { RadioField } from "react-invenio-forms";
 import { Header } from "semantic-ui-react";
 import PropTypes from "prop-types";
 import * as Yup from "yup";
+import Overridable from "react-overridable";
 
 const COMMUNITY_VALIDATION_SCHEMA = Yup.object({
   metadata: Yup.object({
@@ -53,7 +54,7 @@ ReviewPolicyField.defaultProps = {
   label: "",
 };
 
-export class CurationPolicyForm extends Component {
+class CurationPolicyForm extends Component {
   getInitialValues = () => {
     return {
       metadata: {
@@ -73,10 +74,18 @@ export class CurationPolicyForm extends Component {
         community={community}
         validationSchema={COMMUNITY_VALIDATION_SCHEMA}
       >
-        <Header size="tiny" className="mt-0">
-          {i18next.t("Submission review policy")}
-        </Header>
-        <ReviewPolicyField formConfig={formConfig} />
+        <Overridable
+          id="InvenioCommunities.CurationPolicyForm.layout"
+          formConfig={formConfig}
+          community={community}
+        >
+          <>
+            <Header size="tiny" className="mt-0">
+              {i18next.t("Submission review policy")}
+            </Header>
+            <ReviewPolicyField formConfig={formConfig} />
+          </>
+        </Overridable>
       </CommunitySettingsForm>
     );
   }
@@ -86,3 +95,5 @@ CurationPolicyForm.propTypes = {
   community: PropTypes.object.isRequired,
   formConfig: PropTypes.object.isRequired,
 };
+
+export { CurationPolicyForm, ReviewPolicyField };
