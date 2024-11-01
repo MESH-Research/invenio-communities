@@ -15,12 +15,18 @@ from invenio_records_resources.services import (
     SearchOptions,
     pagination_links,
 )
-from invenio_records_resources.services.base.config import ConfiguratorMixin, FromConfig
-from invenio_records_resources.services.records.components import MetadataComponent
+from invenio_records_resources.services.base.config import (
+    ConfiguratorMixin,
+    FromConfig,
+)
+from invenio_records_resources.services.records.components import (
+    MetadataComponent,
+)
 from invenio_records_resources.services.records.queryparser import (
     QueryParser,
     SearchFieldTransformer,
 )
+from kcworks.services.search.queryparser.query import MemberQueryParser
 
 from ...communities.records.api import Community
 from ...permissions import CommunityPermissionPolicy
@@ -134,7 +140,7 @@ class MemberSearchOptions(PublicSearchOptions):
         "visibility": facets.visibility,
     }
 
-    query_parser_cls = QueryParser.factory(
+    query_parser_cls = MemberQueryParser.factory(
         fields=[
             "user.username^2",
             "user.email^2",
@@ -186,7 +192,9 @@ class MemberServiceConfig(RecordServiceConfig, ConfiguratorMixin):
     links_item = {}
 
     # ResultList configurations
-    links_search = pagination_links("{+api}/communities/{community_id}/members{?args*}")
+    links_search = pagination_links(
+        "{+api}/communities/{community_id}/members{?args*}"
+    )
 
     # Service components
     components = [
