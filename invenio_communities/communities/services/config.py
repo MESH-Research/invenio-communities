@@ -42,7 +42,7 @@ from invenio_communities.communities.services.results import (
 from ...permissions import CommunityPermissionPolicy, can_perform_action
 from ..schema import CommunityFeaturedSchema, CommunitySchema, TombstoneSchema
 from .components import DefaultCommunityComponents
-from .links import CommunityLink
+from .links import CommunityLink, CommunityLinks
 from .search_params import IncludeDeletedCommunitiesParam, StatusParam
 from .sort import CommunitiesSortParam
 
@@ -103,18 +103,7 @@ class CommunityServiceConfig(RecordServiceConfig, ConfiguratorMixin):
     result_list_cls_featured = CommunityFeaturedList
     result_item_cls_featured = FeaturedCommunityItem
 
-    links_item = {
-        "self": CommunityLink("{+api}/communities/{id}"),
-        "self_html": CommunityLink("{+ui}/communities/{slug}"),
-        "settings_html": CommunityLink("{+ui}/communities/{slug}/settings"),
-        "logo": CommunityLink("{+api}/communities/{id}/logo"),
-        "rename": CommunityLink("{+api}/communities/{id}/rename"),
-        "members": CommunityLink("{+api}/communities/{id}/members"),
-        "public_members": CommunityLink("{+api}/communities/{id}/members/public"),
-        "invitations": CommunityLink("{+api}/communities/{id}/invitations"),
-        "requests": CommunityLink("{+api}/communities/{id}/requests"),
-        "records": CommunityLink("{+api}/communities/{id}/records"),
-    }
+    links_item = CommunityLinks.get_item_links
 
     action_link = CommunityLink(
         "{+api}/communities/{id}/{action_name}", when=can_perform_action
