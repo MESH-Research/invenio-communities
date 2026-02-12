@@ -10,7 +10,6 @@
 
 """Invenio Communities Service API."""
 
-
 from flask import current_app
 from invenio_cache.decorators import cached_with_expiration
 from invenio_records_resources.proxies import current_service_registry
@@ -276,6 +275,10 @@ class CommunityService(RecordService):
         # update permission on community is required to be able to remove logo.
         self.require_permission(identity, "update", record=record)
         deleted_file = record.files.pop("logo", None)
+        # Ensure the CommunityFileMetadata model is
+        # actually deleted to avoid SQLAlchemy IntegrityError
+        # if a new logo is added again.
+        deleted_file.delete(force=True)
         if deleted_file is None:
             raise FileNotFoundError()
 
