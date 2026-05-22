@@ -262,6 +262,20 @@ class CommunityService(RecordService):
             raise LogoSizeLimitError(logo_size_limit, content_length)
 
         record.files["logo"] = stream
+
+        # Dispatch service components so downstream consumers can react
+        # to a logo upload (e.g. dominant-color sampling). No default
+        # component implements `update_logo` today; the hook is a clean
+        # extension point.
+        self.run_components(
+            "update_logo",
+            identity,
+            record=record,
+            stream=stream,
+            content_length=content_length,
+            uow=uow,
+        )
+
         uow.register(RecordCommitOp(record))
 
         return self.files.file_result_item(
@@ -283,6 +297,19 @@ class CommunityService(RecordService):
             raise LogoNotFoundError()
 
         deleted_file.delete(force=True)
+
+        # Dispatch service components so downstream consumers (e.g. the
+        # KCWorks DefaultBrandingComponent) can re-seed the logo and
+        # theme after a delete. Called before RecordCommitOp so any
+        # mutations to record.files / record["theme"] land in the same
+        # UoW that commits the deletion.
+        self.run_components(
+            "delete_logo",
+            identity,
+            record=record,
+            deleted_file=deleted_file,
+            uow=uow,
+        )
 
         uow.register(RecordCommitOp(record))
 
