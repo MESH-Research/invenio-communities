@@ -36,6 +36,7 @@ from marshmallow import (
     post_load,
     pre_load,
     validate,
+    validates,
 )
 from marshmallow_utils.fields import (
     URL,
@@ -43,6 +44,7 @@ from marshmallow_utils.fields import (
     NestedAttribute,
     SanitizedHTML,
     SanitizedUnicode,
+    TrimmedString,
 )
 from marshmallow_utils.permissions import FieldPermissionsMixin
 
@@ -83,55 +85,43 @@ class CommunityAccessSchema(Schema):
     """Community Access Schema."""
 
     visibility = fields.Str(
-        validate=validate.OneOf(
-            [
-                "public",
-                "restricted",
-            ]
-        )
+        validate=validate.OneOf([
+            "public",
+            "restricted",
+        ])
     )
     members_visibility = fields.Str(
-        validate=validate.OneOf(
-            [
-                "public",
-                "restricted",
-            ]
-        )
+        validate=validate.OneOf([
+            "public",
+            "restricted",
+        ])
     )
     member_policy = fields.Str(
-        validate=validate.OneOf(
-            [
-                "open",
-                "closed",
-            ]
-        )
+        validate=validate.OneOf([
+            "open",
+            "closed",
+        ])
     )
     record_policy = fields.Str(
-        validate=validate.OneOf(
-            [
-                "open",
-                "closed",
-                "restricted",
-            ]
-        )
+        validate=validate.OneOf([
+            "open",
+            "closed",
+            "restricted",
+        ])
     )
     record_submission_policy = fields.Str(
-        validate=validate.OneOf(
-            [
-                "open",
-                "closed",
-                "restricted",
-            ]
-        )
+        validate=validate.OneOf([
+            "open",
+            "closed",
+            "restricted",
+        ])
     )
     review_policy = fields.Str(
-        validate=validate.OneOf(
-            [
-                "open",
-                "closed",
-                "members",
-            ]
-        )
+        validate=validate.OneOf([
+            "open",
+            "closed",
+            "members",
+        ])
     )
 
 
@@ -193,17 +183,128 @@ class DeletionStatusSchema(Schema):
     status = fields.String(dump_only=True)
 
 
-class CommunityThemeStyleSchema(Schema):
-    """Community Theme configuration schema."""
+_HEX_COLOR_RE = re.compile(r"^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
+_FONT_FAMILY_RE = re.compile(r"^[\w\s,'\".-]+$")
+_FONT_SIZE_RE = re.compile(r"^\d+(\.\d+)?(em|rem|px|%)$")
+_FONT_WEIGHT_KEYWORDS = frozenset({"normal", "bold", "bolder", "lighter"})
+_NO_CSS_BREAKOUT_RE = re.compile(r"^[^;{}\\]*$")
+_FONT_KEYS = frozenset({"family", "weight", "size"})
 
-    font = fields.Dict()
-    primaryColor = fields.Str()
-    secondaryColor = fields.Str()
-    tertiaryColor = fields.Str()
-    primaryTextColor = fields.Str()
-    secondaryTextColor = fields.Str()
-    tertiaryTextColor = fields.Str()
-    mainHeaderBackgroundColor = fields.Str()
+
+def _expand_hex(value: str) -> str:
+    """Normalize ``#rgb`` to ``#rrggbb``.
+
+    Args:
+        value: Hex color string.
+
+    Returns:
+        Lowercase ``#rrggbb`` string.
+    """
+    if len(value) == 4:
+        return "#" + "".join(ch * 2 for ch in value[1:])
+    return value.lower()
+
+
+class HexColorField(TrimmedString):
+    """Hex color field (``#rgb`` or ``#rrggbb``); normalizes on deserialize."""
+
+    default_error_messages = {
+        "invalid": _("Must be a hex color (#RGB or #RRGGBB)."),
+    }
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        """Validate and normalize a hex color string.
+
+        Returns:
+            Normalized hex color, or empty string / ``None`` when unset.
+        """
+        value = super()._deserialize(value, attr, data, **kwargs)
+        if value is None or value == "":
+            return value
+        if not _HEX_COLOR_RE.match(value):
+            raise self.make_error("invalid")
+        return _expand_hex(value)
+
+
+class CommunityThemeStyleSchema(Schema):
+    """``theme.style`` — colors, header flags, and optional font dict."""
+
+    class Meta:
+        """Schema options."""
+
+        unknown = EXCLUDE
+
+    primaryColor = HexColorField(allow_none=True)
+    primaryTextColor = HexColorField(allow_none=True)
+    secondaryColor = HexColorField(allow_none=True)
+    secondaryTextColor = HexColorField(allow_none=True)
+    tertiaryColor = HexColorField(allow_none=True)
+    tertiaryTextColor = HexColorField(allow_none=True)
+    mainHeaderBackgroundColor = HexColorField(allow_none=True)
+
+    mainHeaderUseLogo = fields.Boolean(allow_none=True)
+    mainHeaderUseGradient = fields.Boolean(allow_none=True)
+
+    font = fields.Dict(allow_none=True)
+
+    @validates("font")
+    def validate_font(self, value):
+        """Validate ``font.family``, ``font.weight``, and ``font.size`` when present.
+
+        Raises:
+            ValidationError: When any font sub-key is invalid or unknown.
+        """
+        if not value:
+            return
+
+        unknown = set(value) - _FONT_KEYS
+        if unknown:
+            raise ValidationError(
+                _("Unknown font keys: %(keys)s") % {"keys": ", ".join(sorted(unknown))}
+            )
+
+        family = value.get("family")
+        if family is not None:
+            if not isinstance(family, str):
+                raise ValidationError(_("font.family must be a string."))
+            family = family.strip()
+            if len(family) > 200:
+                raise ValidationError(_("font.family is too long."))
+            if not _NO_CSS_BREAKOUT_RE.match(family):
+                raise ValidationError(_("font.family must not contain ; { } or \\."))
+            if not _FONT_FAMILY_RE.match(family):
+                raise ValidationError(_("font.family has invalid characters."))
+
+        weight = value.get("weight")
+        if weight is not None:
+            if isinstance(weight, int):
+                if weight < 100 or weight > 900 or weight % 100 != 0:
+                    raise ValidationError(
+                        _("font.weight must be 100–900 in steps of 100.")
+                    )
+            elif isinstance(weight, str):
+                w = weight.strip()
+                if w not in _FONT_WEIGHT_KEYWORDS and not re.fullmatch(r"[1-9]00", w):
+                    raise ValidationError(
+                        _(
+                            "font.weight must be normal, bold, bolder, lighter, "
+                            "or 100–900."
+                        )
+                    )
+            else:
+                raise ValidationError(_("font.weight must be a string or integer."))
+
+        size = value.get("size")
+        if size is not None:
+            if not isinstance(size, str):
+                raise ValidationError(_("font.size must be a string."))
+            size = size.strip()
+            if len(size) > 20:
+                raise ValidationError(_("font.size is too long."))
+            if not _FONT_SIZE_RE.match(size):
+                raise ValidationError(
+                    _("font.size must be a length (em, rem, px, or %).")
+                )
 
 
 class CommunityThemeSchema(Schema):
@@ -212,6 +313,7 @@ class CommunityThemeSchema(Schema):
     style = fields.Nested(CommunityThemeStyleSchema)
     brand = fields.Str()
     enabled = fields.Boolean()
+    autogeneratedLogo = fields.Boolean()
 
 
 class ChildrenSchema(Schema):
